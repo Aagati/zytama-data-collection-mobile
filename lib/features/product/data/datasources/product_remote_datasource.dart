@@ -9,9 +9,10 @@ abstract class ProductRemoteDataSource {
   Future<ProductCheckModel> checkBarcode(String barcode);
   Future<UploadResponseModel> uploadProduct({
     required String barcode,
-    required File productImage,
-    required File ingredientsImage,
-    required File nutritionImage,
+    required File? productImage,
+    required File? ingredientsImage,
+    required File? nutritionImage,
+    required String ageGroup,
   });
 }
 
@@ -44,25 +45,35 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
   @override
   Future<UploadResponseModel> uploadProduct({
     required String barcode,
-    required File productImage,
-    required File ingredientsImage,
-    required File nutritionImage,
+    required File? productImage,
+    required File? ingredientsImage,
+    required File? nutritionImage,
+    required String ageGroup,
   }) async {
     try {
+      // A skipped photo (e.g. no nutrition label) is sent as an empty
+      // string, per the backend contract for a missing image field.
       final formData = FormData.fromMap({
         'gtin': barcode,
-        'front_image': await MultipartFile.fromFile(
-          productImage.path,
-          filename: 'front_image.jpg',
-        ),
-        'ingredients_image': await MultipartFile.fromFile(
-          ingredientsImage.path,
-          filename: 'ingredients_image.jpg',
-        ),
-        'nutrition_image': await MultipartFile.fromFile(
-          nutritionImage.path,
-          filename: 'nutrition_image.jpg',
-        ),
+        'age_group': ageGroup,
+        'front_image': productImage != null
+            ? await MultipartFile.fromFile(
+                productImage.path,
+                filename: 'front_image.jpg',
+              )
+            : '',
+        'ingredients_image': ingredientsImage != null
+            ? await MultipartFile.fromFile(
+                ingredientsImage.path,
+                filename: 'ingredients_image.jpg',
+              )
+            : '',
+        'nutrition_image': nutritionImage != null
+            ? await MultipartFile.fromFile(
+                nutritionImage.path,
+                filename: 'nutrition_image.jpg',
+              )
+            : '',
       });
 
       final response = await apiClient.postMultipart(

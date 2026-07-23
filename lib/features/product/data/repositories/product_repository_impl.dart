@@ -54,9 +54,10 @@ class ProductRepositoryImpl implements ProductRepository {
   @override
   Future<Either<Failure, String>> uploadProduct({
     required String barcode,
-    required File productImage,
-    required File ingredientsImage,
-    required File nutritionImage,
+    required File? productImage,
+    required File? ingredientsImage,
+    required File? nutritionImage,
+    required String ageGroup,
   }) async {
     if (connectivity.isOnline) {
       try {
@@ -65,6 +66,7 @@ class ProductRepositoryImpl implements ProductRepository {
           productImage: productImage,
           ingredientsImage: ingredientsImage,
           nutritionImage: nutritionImage,
+          ageGroup: ageGroup,
         );
         return Right(result.message);
       } on NetworkException {
@@ -73,6 +75,7 @@ class ProductRepositoryImpl implements ProductRepository {
           productImage: productImage,
           ingredientsImage: ingredientsImage,
           nutritionImage: nutritionImage,
+          ageGroup: ageGroup,
         );
       } on ServerException catch (e) {
         return Left(ServerFailure(e.message));
@@ -83,33 +86,41 @@ class ProductRepositoryImpl implements ProductRepository {
         productImage: productImage,
         ingredientsImage: ingredientsImage,
         nutritionImage: nutritionImage,
+        ageGroup: ageGroup,
       );
     }
   }
 
   Future<Either<Failure, String>> _saveUploadOffline({
     required String barcode,
-    required File productImage,
-    required File ingredientsImage,
-    required File nutritionImage,
+    required File? productImage,
+    required File? ingredientsImage,
+    required File? nutritionImage,
+    required String ageGroup,
   }) async {
     final dir = await getApplicationDocumentsDirectory();
     final offlineDir =
         Directory(p.join(dir.path, 'offline_uploads', barcode));
     await offlineDir.create(recursive: true);
 
-    final savedProduct =
-        await productImage.copy(p.join(offlineDir.path, 'product.jpg'));
-    final savedIngredients = await ingredientsImage
-        .copy(p.join(offlineDir.path, 'ingredients.jpg'));
-    final savedNutrition =
-        await nutritionImage.copy(p.join(offlineDir.path, 'nutrition.jpg'));
+    // A skipped photo (e.g. no nutrition label) is stored as an empty path,
+    // matching the backend convention of an empty string for a missing image.
+    final savedProduct = productImage != null
+        ? (await productImage.copy(p.join(offlineDir.path, 'product.jpg'))).path
+        : '';
+    final savedIngredients = ingredientsImage != null
+        ? (await ingredientsImage.copy(p.join(offlineDir.path, 'ingredients.jpg'))).path
+        : '';
+    final savedNutrition = nutritionImage != null
+        ? (await nutritionImage.copy(p.join(offlineDir.path, 'nutrition.jpg'))).path
+        : '';
 
     await db.insertPendingUpload(PendingUploadsCompanion(
       barcode: Value(barcode),
-      productImagePath: Value(savedProduct.path),
-      ingredientsImagePath: Value(savedIngredients.path),
-      nutritionImagePath: Value(savedNutrition.path),
+      productImagePath: Value(savedProduct),
+      ingredientsImagePath: Value(savedIngredients),
+      nutritionImagePath: Value(savedNutrition),
+      ageGroup: Value(ageGroup),
       createdAt: Value(DateTime.now()),
     ));
 

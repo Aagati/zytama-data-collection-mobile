@@ -104,23 +104,16 @@ class SyncService {
 
       if (_cancelled) return false;
 
-      final productFile = File(record.productImagePath);
-      final ingredientsFile = File(record.ingredientsImagePath);
-      final nutritionFile = File(record.nutritionImagePath);
-
-      if (!await productFile.exists() ||
-          !await ingredientsFile.exists() ||
-          !await nutritionFile.exists()) {
-        debugPrint('[SyncService] Missing image files for barcode=${record.barcode}, skipping');
-        await _markSyncedAndDelete(record);
-        return true;
-      }
+      final productFile = await _resolveFile(record.productImagePath);
+      final ingredientsFile = await _resolveFile(record.ingredientsImagePath);
+      final nutritionFile = await _resolveFile(record.nutritionImagePath);
 
       await _remoteDataSource.uploadProduct(
         barcode: record.barcode,
         productImage: productFile,
         ingredientsImage: ingredientsFile,
         nutritionImage: nutritionFile,
+        ageGroup: record.ageGroup,
       );
 
       await _markSyncedAndDelete(record);
@@ -129,6 +122,14 @@ class SyncService {
       debugPrint('[SyncService] Failed to sync barcode=${record.barcode}: $e');
       return false;
     }
+  }
+
+  /// Returns the cached file for a pending-upload path, or null if that
+  /// photo was skipped (empty path) or its cached copy no longer exists.
+  Future<File?> _resolveFile(String path) async {
+    if (path.isEmpty) return null;
+    final file = File(path);
+    return await file.exists() ? file : null;
   }
 
   Future<void> _markSyncedAndDelete(PendingUpload record) async {

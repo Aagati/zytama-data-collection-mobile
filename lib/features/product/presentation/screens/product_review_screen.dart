@@ -2,13 +2,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../core/utils/image_source_sheet.dart';
 import '../bloc/product_bloc.dart';
 
 class ProductReviewScreen extends StatefulWidget {
   final String barcode;
-  final File initialProductImage;
-  final File initialIngredientsImage;
-  final File initialNutritionImage;
+  final File? initialProductImage;
+  final File? initialIngredientsImage;
+  final File? initialNutritionImage;
   final VoidCallback onSuccess;
   final VoidCallback? onOfflineSuccess;
 
@@ -26,10 +27,22 @@ class ProductReviewScreen extends StatefulWidget {
   State<ProductReviewScreen> createState() => _ProductReviewScreenState();
 }
 
+// Age groups the product may be suitable for, spanning 0 months to 18 years.
+const List<String> kAgeGroups = [
+  '0-6 months',
+  '6-12 months',
+  '1-3 years',
+  '3-5 years',
+  '5-8 years',
+  '8-12 years',
+  '12-18 years',
+];
+
 class _ProductReviewScreenState extends State<ProductReviewScreen> {
-  late File _productImage;
-  late File _ingredientsImage;
-  late File _nutritionImage;
+  File? _productImage;
+  File? _ingredientsImage;
+  File? _nutritionImage;
+  String? _ageGroup;
   final _picker = ImagePicker();
 
   @override
@@ -41,8 +54,12 @@ class _ProductReviewScreenState extends State<ProductReviewScreen> {
   }
 
   Future<void> _replaceImage(int index) async {
+    final source =
+        await ImageSourceSheet.show(context, title: 'Replace Photo');
+    if (source == null || !mounted) return;
+
     final x = await _picker.pickImage(
-      source: ImageSource.camera,
+      source: source,
       imageQuality: 85,
       preferredCameraDevice: CameraDevice.rear,
     );
@@ -149,6 +166,7 @@ class _ProductReviewScreenState extends State<ProductReviewScreen> {
           productImage: _productImage,
           ingredientsImage: _ingredientsImage,
           nutritionImage: _nutritionImage,
+          ageGroup: _ageGroup ?? '',
         ));
   }
 
@@ -274,6 +292,15 @@ class _ProductReviewScreenState extends State<ProductReviewScreen> {
 
                             const SizedBox(height: 20),
 
+                            // Age group selector
+                            _AgeGroupCard(
+                              value: _ageGroup,
+                              enabled: !uploading,
+                              onChanged: (v) => setState(() => _ageGroup = v),
+                            ),
+
+                            const SizedBox(height: 20),
+
                             // Captured Images title
                             const Row(
                               children: [
@@ -296,8 +323,10 @@ class _ProductReviewScreenState extends State<ProductReviewScreen> {
                               title: 'Product\nPhoto',
                               color: const Color(0xff88DDD6),
                               image: _productImage,
-                              onTap: () =>
-                                  _viewImage(_productImage, 'Product Photo'),
+                              onTap: _productImage != null
+                                  ? () => _viewImage(
+                                      _productImage!, 'Product Photo')
+                                  : (uploading ? null : () => _replaceImage(0)),
                               onReplace:
                                   uploading ? null : () => _replaceImage(0),
                             ),
@@ -309,8 +338,10 @@ class _ProductReviewScreenState extends State<ProductReviewScreen> {
                               title: 'Ingredients\nPhoto',
                               color: const Color(0xffB39DDB),
                               image: _ingredientsImage,
-                              onTap: () => _viewImage(
-                                  _ingredientsImage, 'Ingredients Photo'),
+                              onTap: _ingredientsImage != null
+                                  ? () => _viewImage(
+                                      _ingredientsImage!, 'Ingredients Photo')
+                                  : (uploading ? null : () => _replaceImage(1)),
                               onReplace:
                                   uploading ? null : () => _replaceImage(1),
                             ),
@@ -322,8 +353,10 @@ class _ProductReviewScreenState extends State<ProductReviewScreen> {
                               title: 'Nutrition\nPhoto',
                               color: const Color(0xffFFCC80),
                               image: _nutritionImage,
-                              onTap: () => _viewImage(
-                                  _nutritionImage, 'Nutrition Photo'),
+                              onTap: _nutritionImage != null
+                                  ? () => _viewImage(
+                                      _nutritionImage!, 'Nutrition Photo')
+                                  : (uploading ? null : () => _replaceImage(2)),
                               onReplace:
                                   uploading ? null : () => _replaceImage(2),
                             ),
@@ -346,7 +379,8 @@ class _ProductReviewScreenState extends State<ProductReviewScreen> {
                     child: SizedBox(
                       height: 52,
                       child: ElevatedButton.icon(
-                        onPressed: uploading ? null : _submit,
+                        onPressed:
+                            (uploading || _ageGroup == null) ? null : _submit,
                         icon: uploading
                             ? const SizedBox(
                                 width: 18,
@@ -491,14 +525,100 @@ class _BarcodeCard extends StatelessWidget {
   }
 }
 
+// ── Age group card ────────────────────────────────────────────────────────────
+
+class _AgeGroupCard extends StatelessWidget {
+  final String? value;
+  final bool enabled;
+  final ValueChanged<String?> onChanged;
+
+  const _AgeGroupCard({
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const accent = Color(0xff0A6475);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.07), blurRadius: 10),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.child_care, color: accent, size: 18),
+              const SizedBox(width: 8),
+              const Text(
+                'Suitable Age',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(width: 6),
+              Text('*',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.red.shade400)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Age range the product is suitable for (0 months – 18 years).',
+            style: TextStyle(fontSize: 12.5, color: Color(0xff6B7B7E)),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xffF3F8F7),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: accent.withValues(alpha: 0.20)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                isExpanded: true,
+                value: value,
+                hint: const Text('Select age group',
+                    style: TextStyle(
+                        fontSize: 14.5, color: Color(0xff9AA7A9))),
+                icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                    color: accent),
+                borderRadius: BorderRadius.circular(12),
+                style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xff20343A)),
+                onChanged: enabled ? onChanged : null,
+                items: [
+                  for (final group in kAgeGroups)
+                    DropdownMenuItem(value: group, child: Text(group)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Capture card ──────────────────────────────────────────────────────────────
 
 class _CaptureCard extends StatelessWidget {
   final String number;
   final String title;
   final Color color;
-  final File image;
-  final VoidCallback onTap;
+  final File? image;
+  final VoidCallback? onTap;
   final VoidCallback? onReplace;
 
   const _CaptureCard({
@@ -512,6 +632,7 @@ class _CaptureCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final missing = image == null;
     return Container(
       height: 160,
       decoration: BoxDecoration(
@@ -567,9 +688,11 @@ class _CaptureCard extends StatelessWidget {
                     height: 30,
                     child: OutlinedButton.icon(
                       onPressed: onReplace,
-                      icon: const Icon(Icons.refresh, size: 13),
-                      label: const Text('Replace',
-                          style: TextStyle(fontSize: 11)),
+                      icon: Icon(
+                          missing ? Icons.add_a_photo_outlined : Icons.refresh,
+                          size: 13),
+                      label: Text(missing ? 'Add Photo' : 'Replace',
+                          style: const TextStyle(fontSize: 11)),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: color.withValues(alpha: 0.9),
                         side: BorderSide(
@@ -597,36 +720,58 @@ class _CaptureCard extends StatelessWidget {
                       topRight: Radius.circular(18),
                       bottomRight: Radius.circular(18),
                     ),
-                    child: Image.file(
-                      image,
-                      width: double.infinity,
-                      height: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
+                    child: missing
+                        ? Container(
+                            width: double.infinity,
+                            height: double.infinity,
+                            color: color.withValues(alpha: 0.10),
+                            alignment: Alignment.center,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.no_photography_outlined,
+                                    color: color.withValues(alpha: 0.7),
+                                    size: 26),
+                                const SizedBox(height: 6),
+                                Text('No Photo',
+                                    style: TextStyle(
+                                        color: color.withValues(alpha: 0.85),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          )
+                        : Image.file(
+                            image!,
+                            width: double.infinity,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
                   ),
-                  Positioned(
-                    bottom: 6,
-                    right: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.48),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.zoom_in_rounded,
-                              color: Colors.white, size: 12),
-                          SizedBox(width: 3),
-                          Text('Zoom',
-                              style: TextStyle(
-                                  color: Colors.white, fontSize: 10)),
-                        ],
+                  if (!missing)
+                    Positioned(
+                      bottom: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.48),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.zoom_in_rounded,
+                                color: Colors.white, size: 12),
+                            SizedBox(width: 3),
+                            Text('Zoom',
+                                style: TextStyle(
+                                    color: Colors.white, fontSize: 10)),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),

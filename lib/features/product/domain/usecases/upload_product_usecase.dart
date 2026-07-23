@@ -9,14 +9,16 @@ class UploadProductUseCase {
 
   Future<Either<Failure, String>> call({
     required String barcode,
-    required File productImage,
-    required File ingredientsImage,
-    required File nutritionImage,
+    required File? productImage,
+    required File? ingredientsImage,
+    required File? nutritionImage,
+    required String ageGroup,
   }) =>
       repository.uploadProduct(
         barcode: barcode,
         productImage: productImage,
         ingredientsImage: ingredientsImage,
         nutritionImage: nutritionImage,
+        ageGroup: ageGroup,
       );
 }

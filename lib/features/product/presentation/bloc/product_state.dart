@@ -62,9 +62,9 @@ class CapturingNutritionImage extends ProductState {
 
 class ReadyToReview extends ProductState {
   final String barcode;
-  final File productImage;
-  final File ingredientsImage;
-  final File nutritionImage;
+  final File? productImage;
+  final File? ingredientsImage;
+  final File? nutritionImage;
   const ReadyToReview(
     this.barcode,
     this.productImage,

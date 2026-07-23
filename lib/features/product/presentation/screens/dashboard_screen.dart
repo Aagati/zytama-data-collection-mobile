@@ -2,10 +2,12 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:zytama_data/features/auth/presentation/bloc/auth_bloc.dart';
 import '../bloc/dashboard_bloc.dart';
 import '../bloc/product_bloc.dart';
 import 'barcode_scanner_screen.dart';
+import 'manual_entry_screen.dart';
 import 'multi_capture_screen.dart';
 import 'package:zytama_data/features/auth/presentation/screens/login_screen.dart';
 import 'notification_screen.dart';
@@ -13,6 +15,7 @@ import 'product_review_screen.dart';
 import 'all_scans_screen.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/sync/sync_service.dart';
+import '../../../../core/utils/image_source_sheet.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -23,6 +26,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _navIndex = 0;
+  bool _manualEntry = false;
 
   @override
   void initState() {
@@ -41,6 +45,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
     barcode != null
         ? context.read<ProductBloc>().add(BarcodeScanned(barcode))
         : context.read<ProductBloc>().add(ResetProduct());
+  }
+
+  Future<void> _openManualEntry() async {
+    if (!mounted) return;
+    final barcode = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const ManualEntryScreen()),
+    );
+    if (!mounted || barcode == null) return;
+    _manualEntry = true;
+    context.read<ProductBloc>().add(BarcodeScanned(barcode));
+  }
+
+  /// Lets the agent attach the 3 required photos (camera or gallery) without
+  /// going through the guided in-app camera flow.
+  Future<List<File>?> _pickImagesManually() async {
+    const labels = ['Product Photo', 'Ingredients Photo', 'Nutrition Photo'];
+    final picker = ImagePicker();
+    final images = <File>[];
+    for (final label in labels) {
+      if (!mounted) return null;
+      final source = await ImageSourceSheet.show(context, title: label);
+      if (source == null || !mounted) return null;
+      final x = await picker.pickImage(
+        source: source,
+        imageQuality: 85,
+        preferredCameraDevice: CameraDevice.rear,
+      );
+      if (x == null) return null;
+      images.add(File(x.path));
+    }
+    return images;
   }
 
   void _confirmLogout(BuildContext context) {
@@ -160,26 +195,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
               );
               if (!context.mounted) return;
               context.read<ProductBloc>().add(ResetProduct());
-              _openScanner();
+              final wasManual = _manualEntry;
+              _manualEntry = false;
+              if (!wasManual) _openScanner();
             } else if (state is ProductNotExists) {
-              final images = await Navigator.of(context).push<List<File>>(
-                MaterialPageRoute(
-                  builder: (_) => MultiCaptureScreen(barcode: state.barcode),
-                ),
-              );
-              if (!context.mounted) return;
-              if (images != null && images.length == 3) {
-                context.read<ProductBloc>().add(AllImagesCaptured(
-                      productImage: images[0],
-                      ingredientsImage: images[1],
-                      nutritionImage: images[2],
-                    ));
+              if (_manualEntry) {
+                _manualEntry = false;
+                final images = await _pickImagesManually();
+                if (!context.mounted) return;
+                if (images != null) {
+                  context.read<ProductBloc>().add(AllImagesCaptured(
+                        productImage: images[0],
+                        ingredientsImage: images[1],
+                        nutritionImage: images[2],
+                      ));
+                } else {
+                  context.read<ProductBloc>().add(ResetProduct());
+                }
               } else {
-                context.read<ProductBloc>().add(ResetProduct());
-                _openScanner();
+                final images = await Navigator.of(context).push<List<File?>>(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        MultiCaptureScreen(barcode: state.barcode),
+                  ),
+                );
+                if (!context.mounted) return;
+                if (images != null && images.length == 3) {
+                  context.read<ProductBloc>().add(AllImagesCaptured(
+                        productImage: images[0],
+                        ingredientsImage: images[1],
+                        nutritionImage: images[2],
+                      ));
+                } else {
+                  context.read<ProductBloc>().add(ResetProduct());
+                  _openScanner();
+                }
               }
             } else if (state is ReadyToReview) {
               final cb = state.barcode;
+              final wasManual = _manualEntry;
+              _manualEntry = false;
               await Navigator.of(context).push(MaterialPageRoute(
                 builder: (_) => ProductReviewScreen(
                   barcode: cb,
@@ -199,7 +254,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ));
               if (!context.mounted) return;
-              if (context.read<ProductBloc>().state is ProductInitial) {
+              if (!wasManual &&
+                  context.read<ProductBloc>().state is ProductInitial) {
                 _openScanner();
               }
             } else if (state is ProductError) {
@@ -223,7 +279,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               );
               if (!context.mounted) return;
               context.read<ProductBloc>().add(ResetProduct());
-              _openScanner();
+              final wasManual = _manualEntry;
+              _manualEntry = false;
+              if (!wasManual) _openScanner();
             }
           },
         ),
@@ -500,6 +558,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         );
                       },
                     ),
+
+                    // const SizedBox(height: 10),
+
+                    // ── Enter Barcode Manually button ───────────────────
+                    // BlocBuilder<ProductBloc, ProductState>(
+                    //   builder: (context, state) {
+                    //     final busy = state is ProductChecking ||
+                    //         state is ProductUploading;
+                    //     return SizedBox(
+                    //       height: 46,
+                    //       child: OutlinedButton.icon(
+                    //         onPressed: busy ? null : _openManualEntry,
+                    //         icon: const Icon(Icons.keyboard_alt_outlined,
+                    //             size: 18),
+                    //         label: const Text(
+                    //           'Enter Barcode Manually',
+                    //           style: TextStyle(
+                    //               fontSize: 13, fontWeight: FontWeight.w700),
+                    //         ),
+                    //         style: OutlinedButton.styleFrom(
+                    //           foregroundColor: const Color(0xff005F73),
+                    //           side: const BorderSide(
+                    //               color: Color(0xff005F73), width: 1.2),
+                    //           shape: RoundedRectangleBorder(
+                    //               borderRadius: BorderRadius.circular(14)),
+                    //         ),
+                    //       ),
+                    //     );
+                    //   },
+                    // ),
 
                     const SizedBox(height: 22),
 
