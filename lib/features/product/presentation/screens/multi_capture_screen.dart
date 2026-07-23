@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:zytama_data/core/constants/app_colors.dart';
 
 class _StepConfig {
@@ -15,6 +16,46 @@ class _StepConfig {
     required this.icon,
     required this.color,
   });
+}
+
+class _SideButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  const _SideButton({required this.icon, required this.label, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    final color = Colors.white.withValues(alpha: enabled ? 1 : 0.3);
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 56,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: enabled ? 0.15 : 0.05),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                  color: color, fontSize: 11, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class MultiCaptureScreen extends StatefulWidget {
@@ -50,12 +91,13 @@ class _MultiCaptureScreenState extends State<MultiCaptureScreen>
 
   CameraController? _ctrl;
   int _step = 0;
-  final List<File> _captured = [];
+  final List<File?> _captured = List.filled(3, null);
   bool _taking = false;
   bool _flash = false;
   Timer? _sheetTimer;
   bool _sheetOpen = false;
   CameraDescription? _rearCamera;
+  bool _pickerActive = false;
 
   @override
   void initState() {
@@ -99,6 +141,9 @@ class _MultiCaptureScreenState extends State<MultiCaptureScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // The system gallery picker briefly backgrounds the app too; don't tear
+    // the camera down for that transient, intentional pause.
+    if (_pickerActive) return;
     final ctrl = _ctrl;
     if (ctrl == null || !ctrl.value.isInitialized) return;
     if (state == AppLifecycleState.paused ||
@@ -167,24 +212,53 @@ class _MultiCaptureScreenState extends State<MultiCaptureScreen>
     });
 
     final xFile = await _ctrl!.takePicture();
-    _captured.add(File(xFile.path));
+    _captured[_step] = File(xFile.path);
 
     if (!mounted) return;
+    setState(() => _taking = false);
+    await _advance();
+  }
 
-    if (_step < _steps.length - 1) {
-      setState(() {
-        _step++;
-        _taking = false;
-      });
-      _showStepSheet();
-    } else {
-      final ctrl = _ctrl;
-      _ctrl = null;
-      setState(() {});
-      await ctrl?.dispose();
-      await Future.delayed(const Duration(milliseconds: 200));
-      if (mounted) Navigator.of(context).pop(_captured);
+  Future<void> _pickFromGallery() async {
+    if (_taking) return;
+    _pickerActive = true;
+    final x = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+    _pickerActive = false;
+    if (!mounted) return;
+    // Fall back to re-initializing in case the OS disposed the camera
+    // despite the guard above (e.g. a real backgrounding overlapped the pick).
+    if (_ctrl == null || !_ctrl!.value.isInitialized) {
+      await _startController();
+      if (!mounted) return;
     }
+    if (x == null) return;
+    _captured[_step] = File(x.path);
+    await _advance();
+  }
+
+  /// Leaves this step's photo empty (e.g. the product has no nutrition
+  /// label) and moves on; the missing image is sent through as-is.
+  Future<void> _skip() async {
+    if (_taking) return;
+    _captured[_step] = null;
+    await _advance();
+  }
+
+  Future<void> _advance() async {
+    if (_step < _steps.length - 1) {
+      setState(() => _step++);
+      _showStepSheet();
+      return;
+    }
+    final ctrl = _ctrl;
+    _ctrl = null;
+    setState(() {});
+    await ctrl?.dispose();
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (mounted) Navigator.of(context).pop(_captured);
   }
 
   @override
@@ -275,7 +349,7 @@ class _MultiCaptureScreenState extends State<MultiCaptureScreen>
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(_steps.length, (i) {
                         final active = i == _step;
-                        final done = i < _step;
+                        final done = _captured[i] != null;
                         return AnimatedContainer(
                           duration: const Duration(milliseconds: 300),
                           width: active ? 24 : 8,
@@ -350,8 +424,14 @@ class _MultiCaptureScreenState extends State<MultiCaptureScreen>
                   ),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    _SideButton(
+                      icon: Icons.photo_library_rounded,
+                      label: 'Gallery',
+                      onTap: _taking ? null : _pickFromGallery,
+                    ),
                     GestureDetector(
                       onTap: _taking ? null : _capture,
                       child: AnimatedContainer(
@@ -377,6 +457,11 @@ class _MultiCaptureScreenState extends State<MultiCaptureScreen>
                           ),
                         ),
                       ),
+                    ),
+                    _SideButton(
+                      icon: Icons.skip_next_rounded,
+                      label: 'Skip',
+                      onTap: _taking ? null : _skip,
                     ),
                   ],
                 ),

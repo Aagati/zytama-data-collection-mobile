@@ -108,6 +108,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       productImage: event.productImage,
       ingredientsImage: event.ingredientsImage,
       nutritionImage: event.nutritionImage,
+      ageGroup: event.ageGroup,
     );
     result.fold(
       (failure) => emit(ProductError(failure.message)),

@@ -21,6 +21,8 @@ class PendingUploads extends Table {
   TextColumn get productImagePath => text()();
   TextColumn get ingredientsImagePath => text()();
   TextColumn get nutritionImagePath => text()();
+  // Age group the product is suitable for (e.g. '1-3 years'); empty if unset.
+  TextColumn get ageGroup => text().withDefault(const Constant(''))();
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
 }
@@ -32,7 +34,16 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(pendingUploads, pendingUploads.ageGroup);
+          }
+        },
+      );
 
   // ── CachedProducts ops ────────────────────────────────────────────────────
 

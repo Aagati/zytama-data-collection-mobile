@@ -7,8 +7,9 @@ abstract class ProductRepository {
       checkBarcodeExists(String barcode);
   Future<Either<Failure, String>> uploadProduct({
     required String barcode,
-    required File productImage,
-    required File ingredientsImage,
-    required File nutritionImage,
+    required File? productImage,
+    required File? ingredientsImage,
+    required File? nutritionImage,
+    required String ageGroup,
   });
 }
