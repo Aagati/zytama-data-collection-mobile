@@ -19,6 +19,7 @@ import '../../features/product/data/repositories/notification_repository_impl.da
 import '../../features/product/domain/repositories/dashboard_repository.dart';
 import '../../features/product/domain/repositories/notification_repository.dart';
 import '../../features/product/domain/usecases/check_barcode_usecase.dart';
+import '../../features/product/domain/usecases/get_categories_usecase.dart';
 import '../../features/product/domain/usecases/get_dashboard_usecase.dart';
 import '../../features/product/domain/usecases/get_notifications_usecase.dart';
 import '../../features/product/domain/usecases/upload_product_usecase.dart';
@@ -74,6 +75,7 @@ Future<void> init() async {
   // Use cases
   sl.registerLazySingleton(() => LoginUseCase(sl()));
   sl.registerLazySingleton(() => CheckBarcodeUseCase(sl()));
+  sl.registerLazySingleton(() => GetCategoriesUseCase(sl()));
   sl.registerLazySingleton(() => UploadProductUseCase(sl()));
   sl.registerLazySingleton(() => GetDashboardUseCase(sl()));
   sl.registerLazySingleton(() => GetNotificationsUseCase(sl()));

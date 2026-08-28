@@ -7,12 +7,14 @@ import '../models/product_model.dart';
 
 abstract class ProductRemoteDataSource {
   Future<ProductCheckModel> checkBarcode(String barcode);
+  Future<List<String>> getCategories();
   Future<UploadResponseModel> uploadProduct({
     required String barcode,
     required File? productImage,
     required File? ingredientsImage,
     required File? nutritionImage,
     required String ageGroup,
+    required String category,
   });
 }
 
@@ -43,12 +45,34 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
   }
 
   @override
+  Future<List<String>> getCategories() async {
+    try {
+      final response =
+          await apiClient.get(ApiConstants.productCategoriesEndpoint);
+      final body = response.data as Map<String, dynamic>;
+      return ProductCategoriesModel.fromJson(body).categories;
+    } on DioException catch (e) {
+      final body = e.response?.data;
+      final msg = (body is Map ? body['message'] : null) ??
+          e.message ??
+          'Failed to load categories';
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError) {
+        throw NetworkException(msg);
+      }
+      throw ServerException(msg, statusCode: e.response?.statusCode);
+    }
+  }
+
+  @override
   Future<UploadResponseModel> uploadProduct({
     required String barcode,
     required File? productImage,
     required File? ingredientsImage,
     required File? nutritionImage,
     required String ageGroup,
+    required String category,
   }) async {
     try {
       // A skipped photo (e.g. no nutrition label) is sent as an empty
@@ -56,6 +80,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
       final formData = FormData.fromMap({
         'gtin': barcode,
         'age_group': ageGroup,
+        'category': category,
         'front_image': productImage != null
             ? await MultipartFile.fromFile(
                 productImage.path,

@@ -5,6 +5,7 @@ class ApiConstants {
   static String checkBarcodeEndpoint(String barcode) =>
       'products/lookup?gtin=$barcode';
   static const String uploadProductEndpoint = 'products/upload-file';
+  static const String productCategoriesEndpoint = 'product-categories';
   static const String dashboardEndpoint = 'agents/dashboard';
   static const String notificationsEndpoint = 'notifications';
   static const int connectTimeoutMs = 120;

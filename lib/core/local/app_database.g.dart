@@ -333,6 +333,14 @@ class $PendingUploadsTable extends PendingUploads
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant(''));
+  static const VerificationMeta _categoryMeta =
+      const VerificationMeta('category');
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+      'category', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
   static const VerificationMeta _isSyncedMeta =
       const VerificationMeta('isSynced');
   @override
@@ -357,6 +365,7 @@ class $PendingUploadsTable extends PendingUploads
         ingredientsImagePath,
         nutritionImagePath,
         ageGroup,
+        category,
         isSynced,
         createdAt
       ];
@@ -407,6 +416,10 @@ class $PendingUploadsTable extends PendingUploads
       context.handle(_ageGroupMeta,
           ageGroup.isAcceptableOrUnknown(data['age_group']!, _ageGroupMeta));
     }
+    if (data.containsKey('category')) {
+      context.handle(_categoryMeta,
+          category.isAcceptableOrUnknown(data['category']!, _categoryMeta));
+    }
     if (data.containsKey('is_synced')) {
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
@@ -439,6 +452,8 @@ class $PendingUploadsTable extends PendingUploads
           DriftSqlType.string, data['${effectivePrefix}nutrition_image_path'])!,
       ageGroup: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}age_group'])!,
+      category: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}category'])!,
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
       createdAt: attachedDatabase.typeMapping
@@ -459,6 +474,7 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
   final String ingredientsImagePath;
   final String nutritionImagePath;
   final String ageGroup;
+  final String category;
   final bool isSynced;
   final DateTime createdAt;
   const PendingUpload(
@@ -468,6 +484,7 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
       required this.ingredientsImagePath,
       required this.nutritionImagePath,
       required this.ageGroup,
+      required this.category,
       required this.isSynced,
       required this.createdAt});
   @override
@@ -479,6 +496,7 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
     map['ingredients_image_path'] = Variable<String>(ingredientsImagePath);
     map['nutrition_image_path'] = Variable<String>(nutritionImagePath);
     map['age_group'] = Variable<String>(ageGroup);
+    map['category'] = Variable<String>(category);
     map['is_synced'] = Variable<bool>(isSynced);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -492,6 +510,7 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
       ingredientsImagePath: Value(ingredientsImagePath),
       nutritionImagePath: Value(nutritionImagePath),
       ageGroup: Value(ageGroup),
+      category: Value(category),
       isSynced: Value(isSynced),
       createdAt: Value(createdAt),
     );
@@ -509,6 +528,7 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
       nutritionImagePath:
           serializer.fromJson<String>(json['nutritionImagePath']),
       ageGroup: serializer.fromJson<String>(json['ageGroup']),
+      category: serializer.fromJson<String>(json['category']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -523,6 +543,7 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
       'ingredientsImagePath': serializer.toJson<String>(ingredientsImagePath),
       'nutritionImagePath': serializer.toJson<String>(nutritionImagePath),
       'ageGroup': serializer.toJson<String>(ageGroup),
+      'category': serializer.toJson<String>(category),
       'isSynced': serializer.toJson<bool>(isSynced),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -535,6 +556,7 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
           String? ingredientsImagePath,
           String? nutritionImagePath,
           String? ageGroup,
+          String? category,
           bool? isSynced,
           DateTime? createdAt}) =>
       PendingUpload(
@@ -544,6 +566,7 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
         ingredientsImagePath: ingredientsImagePath ?? this.ingredientsImagePath,
         nutritionImagePath: nutritionImagePath ?? this.nutritionImagePath,
         ageGroup: ageGroup ?? this.ageGroup,
+        category: category ?? this.category,
         isSynced: isSynced ?? this.isSynced,
         createdAt: createdAt ?? this.createdAt,
       );
@@ -561,6 +584,7 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
           ? data.nutritionImagePath.value
           : this.nutritionImagePath,
       ageGroup: data.ageGroup.present ? data.ageGroup.value : this.ageGroup,
+      category: data.category.present ? data.category.value : this.category,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
@@ -575,6 +599,7 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
           ..write('ingredientsImagePath: $ingredientsImagePath, ')
           ..write('nutritionImagePath: $nutritionImagePath, ')
           ..write('ageGroup: $ageGroup, ')
+          ..write('category: $category, ')
           ..write('isSynced: $isSynced, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -582,8 +607,16 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
   }
 
   @override
-  int get hashCode => Object.hash(id, barcode, productImagePath,
-      ingredientsImagePath, nutritionImagePath, ageGroup, isSynced, createdAt);
+  int get hashCode => Object.hash(
+      id,
+      barcode,
+      productImagePath,
+      ingredientsImagePath,
+      nutritionImagePath,
+      ageGroup,
+      category,
+      isSynced,
+      createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -594,6 +627,7 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
           other.ingredientsImagePath == this.ingredientsImagePath &&
           other.nutritionImagePath == this.nutritionImagePath &&
           other.ageGroup == this.ageGroup &&
+          other.category == this.category &&
           other.isSynced == this.isSynced &&
           other.createdAt == this.createdAt);
 }
@@ -605,6 +639,7 @@ class PendingUploadsCompanion extends UpdateCompanion<PendingUpload> {
   final Value<String> ingredientsImagePath;
   final Value<String> nutritionImagePath;
   final Value<String> ageGroup;
+  final Value<String> category;
   final Value<bool> isSynced;
   final Value<DateTime> createdAt;
   const PendingUploadsCompanion({
@@ -614,6 +649,7 @@ class PendingUploadsCompanion extends UpdateCompanion<PendingUpload> {
     this.ingredientsImagePath = const Value.absent(),
     this.nutritionImagePath = const Value.absent(),
     this.ageGroup = const Value.absent(),
+    this.category = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
@@ -624,6 +660,7 @@ class PendingUploadsCompanion extends UpdateCompanion<PendingUpload> {
     required String ingredientsImagePath,
     required String nutritionImagePath,
     this.ageGroup = const Value.absent(),
+    this.category = const Value.absent(),
     this.isSynced = const Value.absent(),
     required DateTime createdAt,
   })  : barcode = Value(barcode),
@@ -638,6 +675,7 @@ class PendingUploadsCompanion extends UpdateCompanion<PendingUpload> {
     Expression<String>? ingredientsImagePath,
     Expression<String>? nutritionImagePath,
     Expression<String>? ageGroup,
+    Expression<String>? category,
     Expression<bool>? isSynced,
     Expression<DateTime>? createdAt,
   }) {
@@ -650,6 +688,7 @@ class PendingUploadsCompanion extends UpdateCompanion<PendingUpload> {
       if (nutritionImagePath != null)
         'nutrition_image_path': nutritionImagePath,
       if (ageGroup != null) 'age_group': ageGroup,
+      if (category != null) 'category': category,
       if (isSynced != null) 'is_synced': isSynced,
       if (createdAt != null) 'created_at': createdAt,
     });
@@ -662,6 +701,7 @@ class PendingUploadsCompanion extends UpdateCompanion<PendingUpload> {
       Value<String>? ingredientsImagePath,
       Value<String>? nutritionImagePath,
       Value<String>? ageGroup,
+      Value<String>? category,
       Value<bool>? isSynced,
       Value<DateTime>? createdAt}) {
     return PendingUploadsCompanion(
@@ -671,6 +711,7 @@ class PendingUploadsCompanion extends UpdateCompanion<PendingUpload> {
       ingredientsImagePath: ingredientsImagePath ?? this.ingredientsImagePath,
       nutritionImagePath: nutritionImagePath ?? this.nutritionImagePath,
       ageGroup: ageGroup ?? this.ageGroup,
+      category: category ?? this.category,
       isSynced: isSynced ?? this.isSynced,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -698,6 +739,9 @@ class PendingUploadsCompanion extends UpdateCompanion<PendingUpload> {
     if (ageGroup.present) {
       map['age_group'] = Variable<String>(ageGroup.value);
     }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
@@ -716,8 +760,239 @@ class PendingUploadsCompanion extends UpdateCompanion<PendingUpload> {
           ..write('ingredientsImagePath: $ingredientsImagePath, ')
           ..write('nutritionImagePath: $nutritionImagePath, ')
           ..write('ageGroup: $ageGroup, ')
+          ..write('category: $category, ')
           ..write('isSynced: $isSynced, ')
           ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CachedCategoriesTable extends CachedCategories
+    with TableInfo<$CachedCategoriesTable, CachedCategory> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CachedCategoriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _cachedAtMeta =
+      const VerificationMeta('cachedAt');
+  @override
+  late final GeneratedColumn<DateTime> cachedAt = GeneratedColumn<DateTime>(
+      'cached_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [name, sortOrder, cachedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cached_categories';
+  @override
+  VerificationContext validateIntegrity(Insertable<CachedCategory> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
+    } else if (isInserting) {
+      context.missing(_sortOrderMeta);
+    }
+    if (data.containsKey('cached_at')) {
+      context.handle(_cachedAtMeta,
+          cachedAt.isAcceptableOrUnknown(data['cached_at']!, _cachedAtMeta));
+    } else if (isInserting) {
+      context.missing(_cachedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {name};
+  @override
+  CachedCategory map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CachedCategory(
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+      cachedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}cached_at'])!,
+    );
+  }
+
+  @override
+  $CachedCategoriesTable createAlias(String alias) {
+    return $CachedCategoriesTable(attachedDatabase, alias);
+  }
+}
+
+class CachedCategory extends DataClass implements Insertable<CachedCategory> {
+  final String name;
+  final int sortOrder;
+  final DateTime cachedAt;
+  const CachedCategory(
+      {required this.name, required this.sortOrder, required this.cachedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['name'] = Variable<String>(name);
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['cached_at'] = Variable<DateTime>(cachedAt);
+    return map;
+  }
+
+  CachedCategoriesCompanion toCompanion(bool nullToAbsent) {
+    return CachedCategoriesCompanion(
+      name: Value(name),
+      sortOrder: Value(sortOrder),
+      cachedAt: Value(cachedAt),
+    );
+  }
+
+  factory CachedCategory.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CachedCategory(
+      name: serializer.fromJson<String>(json['name']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      cachedAt: serializer.fromJson<DateTime>(json['cachedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'name': serializer.toJson<String>(name),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'cachedAt': serializer.toJson<DateTime>(cachedAt),
+    };
+  }
+
+  CachedCategory copyWith({String? name, int? sortOrder, DateTime? cachedAt}) =>
+      CachedCategory(
+        name: name ?? this.name,
+        sortOrder: sortOrder ?? this.sortOrder,
+        cachedAt: cachedAt ?? this.cachedAt,
+      );
+  CachedCategory copyWithCompanion(CachedCategoriesCompanion data) {
+    return CachedCategory(
+      name: data.name.present ? data.name.value : this.name,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      cachedAt: data.cachedAt.present ? data.cachedAt.value : this.cachedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedCategory(')
+          ..write('name: $name, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('cachedAt: $cachedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(name, sortOrder, cachedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CachedCategory &&
+          other.name == this.name &&
+          other.sortOrder == this.sortOrder &&
+          other.cachedAt == this.cachedAt);
+}
+
+class CachedCategoriesCompanion extends UpdateCompanion<CachedCategory> {
+  final Value<String> name;
+  final Value<int> sortOrder;
+  final Value<DateTime> cachedAt;
+  final Value<int> rowid;
+  const CachedCategoriesCompanion({
+    this.name = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.cachedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CachedCategoriesCompanion.insert({
+    required String name,
+    required int sortOrder,
+    required DateTime cachedAt,
+    this.rowid = const Value.absent(),
+  })  : name = Value(name),
+        sortOrder = Value(sortOrder),
+        cachedAt = Value(cachedAt);
+  static Insertable<CachedCategory> custom({
+    Expression<String>? name,
+    Expression<int>? sortOrder,
+    Expression<DateTime>? cachedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (name != null) 'name': name,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (cachedAt != null) 'cached_at': cachedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CachedCategoriesCompanion copyWith(
+      {Value<String>? name,
+      Value<int>? sortOrder,
+      Value<DateTime>? cachedAt,
+      Value<int>? rowid}) {
+    return CachedCategoriesCompanion(
+      name: name ?? this.name,
+      sortOrder: sortOrder ?? this.sortOrder,
+      cachedAt: cachedAt ?? this.cachedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (cachedAt.present) {
+      map['cached_at'] = Variable<DateTime>(cachedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedCategoriesCompanion(')
+          ..write('name: $name, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('cachedAt: $cachedAt, ')
+          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -728,12 +1003,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $CachedProductsTable cachedProducts = $CachedProductsTable(this);
   late final $PendingUploadsTable pendingUploads = $PendingUploadsTable(this);
+  late final $CachedCategoriesTable cachedCategories =
+      $CachedCategoriesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [cachedProducts, pendingUploads];
+      [cachedProducts, pendingUploads, cachedCategories];
 }
 
 typedef $$CachedProductsTableCreateCompanionBuilder = CachedProductsCompanion
@@ -905,6 +1182,7 @@ typedef $$PendingUploadsTableCreateCompanionBuilder = PendingUploadsCompanion
   required String ingredientsImagePath,
   required String nutritionImagePath,
   Value<String> ageGroup,
+  Value<String> category,
   Value<bool> isSynced,
   required DateTime createdAt,
 });
@@ -916,6 +1194,7 @@ typedef $$PendingUploadsTableUpdateCompanionBuilder = PendingUploadsCompanion
   Value<String> ingredientsImagePath,
   Value<String> nutritionImagePath,
   Value<String> ageGroup,
+  Value<String> category,
   Value<bool> isSynced,
   Value<DateTime> createdAt,
 });
@@ -949,6 +1228,9 @@ class $$PendingUploadsTableFilterComposer
 
   ColumnFilters<String> get ageGroup => $composableBuilder(
       column: $table.ageGroup, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get category => $composableBuilder(
+      column: $table.category, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
@@ -987,6 +1269,9 @@ class $$PendingUploadsTableOrderingComposer
   ColumnOrderings<String> get ageGroup => $composableBuilder(
       column: $table.ageGroup, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get category => $composableBuilder(
+      column: $table.category, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
 
@@ -1020,6 +1305,9 @@ class $$PendingUploadsTableAnnotationComposer
 
   GeneratedColumn<String> get ageGroup =>
       $composableBuilder(column: $table.ageGroup, builder: (column) => column);
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
@@ -1061,6 +1349,7 @@ class $$PendingUploadsTableTableManager extends RootTableManager<
             Value<String> ingredientsImagePath = const Value.absent(),
             Value<String> nutritionImagePath = const Value.absent(),
             Value<String> ageGroup = const Value.absent(),
+            Value<String> category = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
           }) =>
@@ -1071,6 +1360,7 @@ class $$PendingUploadsTableTableManager extends RootTableManager<
             ingredientsImagePath: ingredientsImagePath,
             nutritionImagePath: nutritionImagePath,
             ageGroup: ageGroup,
+            category: category,
             isSynced: isSynced,
             createdAt: createdAt,
           ),
@@ -1081,6 +1371,7 @@ class $$PendingUploadsTableTableManager extends RootTableManager<
             required String ingredientsImagePath,
             required String nutritionImagePath,
             Value<String> ageGroup = const Value.absent(),
+            Value<String> category = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             required DateTime createdAt,
           }) =>
@@ -1091,6 +1382,7 @@ class $$PendingUploadsTableTableManager extends RootTableManager<
             ingredientsImagePath: ingredientsImagePath,
             nutritionImagePath: nutritionImagePath,
             ageGroup: ageGroup,
+            category: category,
             isSynced: isSynced,
             createdAt: createdAt,
           ),
@@ -1116,6 +1408,150 @@ typedef $$PendingUploadsTableProcessedTableManager = ProcessedTableManager<
     ),
     PendingUpload,
     PrefetchHooks Function()>;
+typedef $$CachedCategoriesTableCreateCompanionBuilder
+    = CachedCategoriesCompanion Function({
+  required String name,
+  required int sortOrder,
+  required DateTime cachedAt,
+  Value<int> rowid,
+});
+typedef $$CachedCategoriesTableUpdateCompanionBuilder
+    = CachedCategoriesCompanion Function({
+  Value<String> name,
+  Value<int> sortOrder,
+  Value<DateTime> cachedAt,
+  Value<int> rowid,
+});
+
+class $$CachedCategoriesTableFilterComposer
+    extends Composer<_$AppDatabase, $CachedCategoriesTable> {
+  $$CachedCategoriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get cachedAt => $composableBuilder(
+      column: $table.cachedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$CachedCategoriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $CachedCategoriesTable> {
+  $$CachedCategoriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get cachedAt => $composableBuilder(
+      column: $table.cachedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$CachedCategoriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CachedCategoriesTable> {
+  $$CachedCategoriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get cachedAt =>
+      $composableBuilder(column: $table.cachedAt, builder: (column) => column);
+}
+
+class $$CachedCategoriesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $CachedCategoriesTable,
+    CachedCategory,
+    $$CachedCategoriesTableFilterComposer,
+    $$CachedCategoriesTableOrderingComposer,
+    $$CachedCategoriesTableAnnotationComposer,
+    $$CachedCategoriesTableCreateCompanionBuilder,
+    $$CachedCategoriesTableUpdateCompanionBuilder,
+    (
+      CachedCategory,
+      BaseReferences<_$AppDatabase, $CachedCategoriesTable, CachedCategory>
+    ),
+    CachedCategory,
+    PrefetchHooks Function()> {
+  $$CachedCategoriesTableTableManager(
+      _$AppDatabase db, $CachedCategoriesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CachedCategoriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CachedCategoriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CachedCategoriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> name = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            Value<DateTime> cachedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CachedCategoriesCompanion(
+            name: name,
+            sortOrder: sortOrder,
+            cachedAt: cachedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String name,
+            required int sortOrder,
+            required DateTime cachedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CachedCategoriesCompanion.insert(
+            name: name,
+            sortOrder: sortOrder,
+            cachedAt: cachedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$CachedCategoriesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $CachedCategoriesTable,
+    CachedCategory,
+    $$CachedCategoriesTableFilterComposer,
+    $$CachedCategoriesTableOrderingComposer,
+    $$CachedCategoriesTableAnnotationComposer,
+    $$CachedCategoriesTableCreateCompanionBuilder,
+    $$CachedCategoriesTableUpdateCompanionBuilder,
+    (
+      CachedCategory,
+      BaseReferences<_$AppDatabase, $CachedCategoriesTable, CachedCategory>
+    ),
+    CachedCategory,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -1124,4 +1560,6 @@ class $AppDatabaseManager {
       $$CachedProductsTableTableManager(_db, _db.cachedProducts);
   $$PendingUploadsTableTableManager get pendingUploads =>
       $$PendingUploadsTableTableManager(_db, _db.pendingUploads);
+  $$CachedCategoriesTableTableManager get cachedCategories =>
+      $$CachedCategoriesTableTableManager(_db, _db.cachedCategories);
 }

@@ -2,7 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/image_source_sheet.dart';
+import '../../domain/usecases/get_categories_usecase.dart';
 import '../bloc/product_bloc.dart';
 
 class ProductReviewScreen extends StatefulWidget {
@@ -43,6 +45,10 @@ class _ProductReviewScreenState extends State<ProductReviewScreen> {
   File? _ingredientsImage;
   File? _nutritionImage;
   String? _ageGroup;
+  String? _category;
+  List<String> _categories = const [];
+  bool _loadingCategories = true;
+  String? _categoriesError;
   final _picker = ImagePicker();
 
   @override
@@ -51,6 +57,32 @@ class _ProductReviewScreenState extends State<ProductReviewScreen> {
     _productImage = widget.initialProductImage;
     _ingredientsImage = widget.initialIngredientsImage;
     _nutritionImage = widget.initialNutritionImage;
+    _loadCategories();
+  }
+
+  /// Pulls the category list from the backend; the repository falls back to
+  /// the last cached list when the agent is offline.
+  Future<void> _loadCategories() async {
+    setState(() {
+      _loadingCategories = true;
+      _categoriesError = null;
+    });
+    final result = await sl<GetCategoriesUseCase>()();
+    if (!mounted) return;
+    result.fold(
+      (failure) => setState(() {
+        _loadingCategories = false;
+        _categoriesError = failure.message;
+      }),
+      (categories) => setState(() {
+        _loadingCategories = false;
+        _categories = categories;
+        // Drop a stale selection if the list changed underneath it.
+        if (_category != null && !categories.contains(_category)) {
+          _category = null;
+        }
+      }),
+    );
   }
 
   Future<void> _replaceImage(int index) async {
@@ -167,6 +199,7 @@ class _ProductReviewScreenState extends State<ProductReviewScreen> {
           ingredientsImage: _ingredientsImage,
           nutritionImage: _nutritionImage,
           ageGroup: _ageGroup ?? '',
+          category: _category ?? '',
         ));
   }
 
@@ -292,9 +325,35 @@ class _ProductReviewScreenState extends State<ProductReviewScreen> {
 
                             const SizedBox(height: 20),
 
+                            // Category selector
+                            _DropdownCard(
+                              icon: Icons.category_outlined,
+                              title: 'Product Category',
+                              subtitle:
+                                  'Category this product belongs to.',
+                              hint: 'Select category',
+                              value: _category,
+                              items: _categories,
+                              enabled: !uploading,
+                              loading: _loadingCategories,
+                              loadingLabel: 'Loading categories…',
+                              error: _categoriesError,
+                              emptyLabel: 'No categories available.',
+                              onRetry: uploading ? null : _loadCategories,
+                              onChanged: (v) => setState(() => _category = v),
+                            ),
+
+                            const SizedBox(height: 20),
+
                             // Age group selector
-                            _AgeGroupCard(
+                            _DropdownCard(
+                              icon: Icons.child_care,
+                              title: 'Suitable Age',
+                              subtitle:
+                                  'Age range the product is suitable for (0 months – 18 years).',
+                              hint: 'Select age group',
                               value: _ageGroup,
+                              items: kAgeGroups,
                               enabled: !uploading,
                               onChanged: (v) => setState(() => _ageGroup = v),
                             ),
@@ -380,7 +439,9 @@ class _ProductReviewScreenState extends State<ProductReviewScreen> {
                       height: 52,
                       child: ElevatedButton.icon(
                         onPressed:
-                            (uploading || _ageGroup == null) ? null : _submit,
+                            (uploading || _ageGroup == null || _category == null)
+                                ? null
+                                : _submit,
                         icon: uploading
                             ? const SizedBox(
                                 width: 18,
@@ -525,22 +586,45 @@ class _BarcodeCard extends StatelessWidget {
   }
 }
 
-// ── Age group card ────────────────────────────────────────────────────────────
+// ── Dropdown card (category / age group) ──────────────────────────────────────
 
-class _AgeGroupCard extends StatelessWidget {
+class _DropdownCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String hint;
   final String? value;
+  final List<String> items;
   final bool enabled;
   final ValueChanged<String?> onChanged;
 
-  const _AgeGroupCard({
+  /// Async-list extras — unused by selectors backed by a constant list.
+  final bool loading;
+  final String loadingLabel;
+  final String? error;
+  final String emptyLabel;
+  final VoidCallback? onRetry;
+
+  const _DropdownCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.hint,
     required this.value,
+    required this.items,
     required this.enabled,
     required this.onChanged,
+    this.loading = false,
+    this.loadingLabel = 'Loading…',
+    this.error,
+    this.emptyLabel = 'Nothing to select.',
+    this.onRetry,
   });
+
+  static const _accent = Color(0xff0A6475);
 
   @override
   Widget build(BuildContext context) {
-    const accent = Color(0xff0A6475);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -556,11 +640,12 @@ class _AgeGroupCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.child_care, color: accent, size: 18),
+              Icon(icon, color: _accent, size: 18),
               const SizedBox(width: 8),
-              const Text(
-                'Suitable Age',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              Text(
+                title,
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w700),
               ),
               const SizedBox(width: 6),
               Text('*',
@@ -571,37 +656,110 @@ class _AgeGroupCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Age range the product is suitable for (0 months – 18 years).',
-            style: TextStyle(fontSize: 12.5, color: Color(0xff6B7B7E)),
+          Text(
+            subtitle,
+            style: const TextStyle(fontSize: 12.5, color: Color(0xff6B7B7E)),
           ),
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(
-              color: const Color(0xffF3F8F7),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: accent.withValues(alpha: 0.20)),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                isExpanded: true,
-                value: value,
-                hint: const Text('Select age group',
+          _field(),
+        ],
+      ),
+    );
+  }
+
+  Widget _field() {
+    if (loading) return _shell(child: _statusRow(loadingLabel, spinner: true));
+
+    final message = error ?? (items.isEmpty ? emptyLabel : null);
+    if (message != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _shell(child: _statusRow(message, isError: true)),
+          if (onRetry != null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded, size: 16),
+                label: const Text('Retry',
                     style: TextStyle(
-                        fontSize: 14.5, color: Color(0xff9AA7A9))),
-                icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                    color: accent),
-                borderRadius: BorderRadius.circular(12),
-                style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xff20343A)),
-                onChanged: enabled ? onChanged : null,
-                items: [
-                  for (final group in kAgeGroups)
-                    DropdownMenuItem(value: group, child: Text(group)),
-                ],
+                        fontSize: 13, fontWeight: FontWeight.w700)),
+                style: TextButton.styleFrom(
+                  foregroundColor: _accent,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ),
+        ],
+      );
+    }
+
+    return _shell(
+      horizontalPadding: 14,
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          isExpanded: true,
+          // Guard against a selection that no longer exists in the list.
+          value: items.contains(value) ? value : null,
+          hint: Text(hint,
+              style: const TextStyle(
+                  fontSize: 14.5, color: Color(0xff9AA7A9))),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: _accent),
+          borderRadius: BorderRadius.circular(12),
+          style: const TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xff20343A)),
+          onChanged: enabled ? onChanged : null,
+          items: [
+            for (final item in items)
+              DropdownMenuItem(value: item, child: Text(item)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _shell({required Widget child, double horizontalPadding = 14}) =>
+      Container(
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+        decoration: BoxDecoration(
+          color: const Color(0xffF3F8F7),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _accent.withValues(alpha: 0.20)),
+        ),
+        child: child,
+      );
+
+  Widget _statusRow(String label, {bool spinner = false, bool isError = false}) {
+    return SizedBox(
+      height: 48,
+      child: Row(
+        children: [
+          if (spinner)
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: _accent),
+            )
+          else
+            Icon(Icons.error_outline_rounded,
+                size: 17, color: Colors.red.shade400),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: isError
+                    ? Colors.red.shade400
+                    : const Color(0xff6B7B7E),
               ),
             ),
           ),

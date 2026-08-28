@@ -52,12 +52,41 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
+  Future<Either<Failure, List<String>>> getCategories() async {
+    if (connectivity.isOnline) {
+      try {
+        final categories = await remoteDataSource.getCategories();
+        if (categories.isNotEmpty) {
+          await db.replaceCachedCategories(categories);
+        }
+        return Right(categories);
+      } on NetworkException catch (e) {
+        return _categoriesFromCache(e.message);
+      } on ServerException catch (e) {
+        return _categoriesFromCache(e.message);
+      }
+    }
+    return _categoriesFromCache('No internet connection');
+  }
+
+  /// Falls back to the last synced category list so the review screen stays
+  /// usable offline; only reports a failure when nothing was ever cached.
+  Future<Either<Failure, List<String>>> _categoriesFromCache(
+    String failureMessage,
+  ) async {
+    final cached = await db.getCachedCategories();
+    if (cached.isNotEmpty) return Right(cached);
+    return Left(NetworkFailure(failureMessage));
+  }
+
+  @override
   Future<Either<Failure, String>> uploadProduct({
     required String barcode,
     required File? productImage,
     required File? ingredientsImage,
     required File? nutritionImage,
     required String ageGroup,
+    required String category,
   }) async {
     if (connectivity.isOnline) {
       try {
@@ -67,6 +96,7 @@ class ProductRepositoryImpl implements ProductRepository {
           ingredientsImage: ingredientsImage,
           nutritionImage: nutritionImage,
           ageGroup: ageGroup,
+          category: category,
         );
         return Right(result.message);
       } on NetworkException {
@@ -76,6 +106,7 @@ class ProductRepositoryImpl implements ProductRepository {
           ingredientsImage: ingredientsImage,
           nutritionImage: nutritionImage,
           ageGroup: ageGroup,
+          category: category,
         );
       } on ServerException catch (e) {
         return Left(ServerFailure(e.message));
@@ -87,6 +118,7 @@ class ProductRepositoryImpl implements ProductRepository {
         ingredientsImage: ingredientsImage,
         nutritionImage: nutritionImage,
         ageGroup: ageGroup,
+        category: category,
       );
     }
   }
@@ -97,6 +129,7 @@ class ProductRepositoryImpl implements ProductRepository {
     required File? ingredientsImage,
     required File? nutritionImage,
     required String ageGroup,
+    required String category,
   }) async {
     final dir = await getApplicationDocumentsDirectory();
     final offlineDir =
@@ -121,6 +154,7 @@ class ProductRepositoryImpl implements ProductRepository {
       ingredientsImagePath: Value(savedIngredients),
       nutritionImagePath: Value(savedNutrition),
       ageGroup: Value(ageGroup),
+      category: Value(category),
       createdAt: Value(DateTime.now()),
     ));
 

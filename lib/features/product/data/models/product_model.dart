@@ -20,6 +20,23 @@ class ProductCheckModel {
   }
 }
 
+class ProductCategoriesModel {
+  final List<String> categories;
+
+  const ProductCategoriesModel({required this.categories});
+
+  factory ProductCategoriesModel.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] as Map<String, dynamic>?;
+    final raw = data?['categories'] as List<dynamic>? ?? const [];
+    return ProductCategoriesModel(
+      categories: raw
+          .map((e) => e?.toString().trim() ?? '')
+          .where((e) => e.isNotEmpty)
+          .toList(growable: false),
+    );
+  }
+}
+
 class UploadResponseModel {
   final bool success;
   final String message;

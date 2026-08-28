@@ -114,6 +114,7 @@ class SyncService {
         ingredientsImage: ingredientsFile,
         nutritionImage: nutritionFile,
         ageGroup: record.ageGroup,
+        category: record.category,
       );
 
       await _markSyncedAndDelete(record);

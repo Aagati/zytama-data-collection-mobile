@@ -13,6 +13,7 @@ class UploadProductUseCase {
     required File? ingredientsImage,
     required File? nutritionImage,
     required String ageGroup,
+    required String category,
   }) =>
       repository.uploadProduct(
         barcode: barcode,
@@ -20,5 +21,6 @@ class UploadProductUseCase {
         ingredientsImage: ingredientsImage,
         nutritionImage: nutritionImage,
         ageGroup: ageGroup,
+        category: category,
       );
 }

@@ -5,11 +5,13 @@ import '../../../../core/errors/failures.dart';
 abstract class ProductRepository {
   Future<Either<Failure, ({bool found, String? message, String? productImageUrl})>>
       checkBarcodeExists(String barcode);
+  Future<Either<Failure, List<String>>> getCategories();
   Future<Either<Failure, String>> uploadProduct({
     required String barcode,
     required File? productImage,
     required File? ingredientsImage,
     required File? nutritionImage,
     required String ageGroup,
+    required String category,
   });
 }
