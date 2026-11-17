@@ -37,7 +37,6 @@ const List<String> kAgeGroups = [
   '3-5 years',
   '5-8 years',
   '8-12 years',
-  '12-18 years',
 ];
 
 class _ProductReviewScreenState extends State<ProductReviewScreen> {
