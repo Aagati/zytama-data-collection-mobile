@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../domain/entities/product_details.dart';
 import '../../domain/usecases/check_barcode_usecase.dart';
 import '../../domain/usecases/upload_product_usecase.dart';
 
@@ -110,6 +111,10 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       nutritionImage: event.nutritionImage,
       ageGroup: event.ageGroup,
       category: event.category,
+      studioImage: event.studioImage,
+      studioIngredientsImage: event.studioIngredientsImage,
+      studioNutritionImage: event.studioNutritionImage,
+      productDetails: event.productDetails,
     );
     result.fold(
       (failure) => emit(ProductError(failure.message)),

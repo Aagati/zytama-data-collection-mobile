@@ -341,6 +341,39 @@ class $PendingUploadsTable extends PendingUploads
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant(''));
+  static const VerificationMeta _studioImagePathMeta =
+      const VerificationMeta('studioImagePath');
+  @override
+  late final GeneratedColumn<String> studioImagePath = GeneratedColumn<String>(
+      'studio_image_path', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _studioIngredientsImagePathMeta =
+      const VerificationMeta('studioIngredientsImagePath');
+  @override
+  late final GeneratedColumn<String> studioIngredientsImagePath =
+      GeneratedColumn<String>(
+          'studio_ingredients_image_path', aliasedName, false,
+          type: DriftSqlType.string,
+          requiredDuringInsert: false,
+          defaultValue: const Constant(''));
+  static const VerificationMeta _studioNutritionImagePathMeta =
+      const VerificationMeta('studioNutritionImagePath');
+  @override
+  late final GeneratedColumn<String> studioNutritionImagePath =
+      GeneratedColumn<String>('studio_nutrition_image_path', aliasedName, false,
+          type: DriftSqlType.string,
+          requiredDuringInsert: false,
+          defaultValue: const Constant(''));
+  static const VerificationMeta _productDetailsJsonMeta =
+      const VerificationMeta('productDetailsJson');
+  @override
+  late final GeneratedColumn<String> productDetailsJson =
+      GeneratedColumn<String>('product_details_json', aliasedName, false,
+          type: DriftSqlType.string,
+          requiredDuringInsert: false,
+          defaultValue: const Constant(''));
   static const VerificationMeta _isSyncedMeta =
       const VerificationMeta('isSynced');
   @override
@@ -366,6 +399,10 @@ class $PendingUploadsTable extends PendingUploads
         nutritionImagePath,
         ageGroup,
         category,
+        studioImagePath,
+        studioIngredientsImagePath,
+        studioNutritionImagePath,
+        productDetailsJson,
         isSynced,
         createdAt
       ];
@@ -420,6 +457,32 @@ class $PendingUploadsTable extends PendingUploads
       context.handle(_categoryMeta,
           category.isAcceptableOrUnknown(data['category']!, _categoryMeta));
     }
+    if (data.containsKey('studio_image_path')) {
+      context.handle(
+          _studioImagePathMeta,
+          studioImagePath.isAcceptableOrUnknown(
+              data['studio_image_path']!, _studioImagePathMeta));
+    }
+    if (data.containsKey('studio_ingredients_image_path')) {
+      context.handle(
+          _studioIngredientsImagePathMeta,
+          studioIngredientsImagePath.isAcceptableOrUnknown(
+              data['studio_ingredients_image_path']!,
+              _studioIngredientsImagePathMeta));
+    }
+    if (data.containsKey('studio_nutrition_image_path')) {
+      context.handle(
+          _studioNutritionImagePathMeta,
+          studioNutritionImagePath.isAcceptableOrUnknown(
+              data['studio_nutrition_image_path']!,
+              _studioNutritionImagePathMeta));
+    }
+    if (data.containsKey('product_details_json')) {
+      context.handle(
+          _productDetailsJsonMeta,
+          productDetailsJson.isAcceptableOrUnknown(
+              data['product_details_json']!, _productDetailsJsonMeta));
+    }
     if (data.containsKey('is_synced')) {
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
@@ -454,6 +517,16 @@ class $PendingUploadsTable extends PendingUploads
           .read(DriftSqlType.string, data['${effectivePrefix}age_group'])!,
       category: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}category'])!,
+      studioImagePath: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}studio_image_path'])!,
+      studioIngredientsImagePath: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}studio_ingredients_image_path'])!,
+      studioNutritionImagePath: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}studio_nutrition_image_path'])!,
+      productDetailsJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}product_details_json'])!,
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
       createdAt: attachedDatabase.typeMapping
@@ -475,6 +548,10 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
   final String nutritionImagePath;
   final String ageGroup;
   final String category;
+  final String studioImagePath;
+  final String studioIngredientsImagePath;
+  final String studioNutritionImagePath;
+  final String productDetailsJson;
   final bool isSynced;
   final DateTime createdAt;
   const PendingUpload(
@@ -485,6 +562,10 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
       required this.nutritionImagePath,
       required this.ageGroup,
       required this.category,
+      required this.studioImagePath,
+      required this.studioIngredientsImagePath,
+      required this.studioNutritionImagePath,
+      required this.productDetailsJson,
       required this.isSynced,
       required this.createdAt});
   @override
@@ -497,6 +578,12 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
     map['nutrition_image_path'] = Variable<String>(nutritionImagePath);
     map['age_group'] = Variable<String>(ageGroup);
     map['category'] = Variable<String>(category);
+    map['studio_image_path'] = Variable<String>(studioImagePath);
+    map['studio_ingredients_image_path'] =
+        Variable<String>(studioIngredientsImagePath);
+    map['studio_nutrition_image_path'] =
+        Variable<String>(studioNutritionImagePath);
+    map['product_details_json'] = Variable<String>(productDetailsJson);
     map['is_synced'] = Variable<bool>(isSynced);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -511,6 +598,10 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
       nutritionImagePath: Value(nutritionImagePath),
       ageGroup: Value(ageGroup),
       category: Value(category),
+      studioImagePath: Value(studioImagePath),
+      studioIngredientsImagePath: Value(studioIngredientsImagePath),
+      studioNutritionImagePath: Value(studioNutritionImagePath),
+      productDetailsJson: Value(productDetailsJson),
       isSynced: Value(isSynced),
       createdAt: Value(createdAt),
     );
@@ -529,6 +620,13 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
           serializer.fromJson<String>(json['nutritionImagePath']),
       ageGroup: serializer.fromJson<String>(json['ageGroup']),
       category: serializer.fromJson<String>(json['category']),
+      studioImagePath: serializer.fromJson<String>(json['studioImagePath']),
+      studioIngredientsImagePath:
+          serializer.fromJson<String>(json['studioIngredientsImagePath']),
+      studioNutritionImagePath:
+          serializer.fromJson<String>(json['studioNutritionImagePath']),
+      productDetailsJson:
+          serializer.fromJson<String>(json['productDetailsJson']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -544,6 +642,12 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
       'nutritionImagePath': serializer.toJson<String>(nutritionImagePath),
       'ageGroup': serializer.toJson<String>(ageGroup),
       'category': serializer.toJson<String>(category),
+      'studioImagePath': serializer.toJson<String>(studioImagePath),
+      'studioIngredientsImagePath':
+          serializer.toJson<String>(studioIngredientsImagePath),
+      'studioNutritionImagePath':
+          serializer.toJson<String>(studioNutritionImagePath),
+      'productDetailsJson': serializer.toJson<String>(productDetailsJson),
       'isSynced': serializer.toJson<bool>(isSynced),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -557,6 +661,10 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
           String? nutritionImagePath,
           String? ageGroup,
           String? category,
+          String? studioImagePath,
+          String? studioIngredientsImagePath,
+          String? studioNutritionImagePath,
+          String? productDetailsJson,
           bool? isSynced,
           DateTime? createdAt}) =>
       PendingUpload(
@@ -567,6 +675,12 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
         nutritionImagePath: nutritionImagePath ?? this.nutritionImagePath,
         ageGroup: ageGroup ?? this.ageGroup,
         category: category ?? this.category,
+        studioImagePath: studioImagePath ?? this.studioImagePath,
+        studioIngredientsImagePath:
+            studioIngredientsImagePath ?? this.studioIngredientsImagePath,
+        studioNutritionImagePath:
+            studioNutritionImagePath ?? this.studioNutritionImagePath,
+        productDetailsJson: productDetailsJson ?? this.productDetailsJson,
         isSynced: isSynced ?? this.isSynced,
         createdAt: createdAt ?? this.createdAt,
       );
@@ -585,6 +699,18 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
           : this.nutritionImagePath,
       ageGroup: data.ageGroup.present ? data.ageGroup.value : this.ageGroup,
       category: data.category.present ? data.category.value : this.category,
+      studioImagePath: data.studioImagePath.present
+          ? data.studioImagePath.value
+          : this.studioImagePath,
+      studioIngredientsImagePath: data.studioIngredientsImagePath.present
+          ? data.studioIngredientsImagePath.value
+          : this.studioIngredientsImagePath,
+      studioNutritionImagePath: data.studioNutritionImagePath.present
+          ? data.studioNutritionImagePath.value
+          : this.studioNutritionImagePath,
+      productDetailsJson: data.productDetailsJson.present
+          ? data.productDetailsJson.value
+          : this.productDetailsJson,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
@@ -600,6 +726,10 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
           ..write('nutritionImagePath: $nutritionImagePath, ')
           ..write('ageGroup: $ageGroup, ')
           ..write('category: $category, ')
+          ..write('studioImagePath: $studioImagePath, ')
+          ..write('studioIngredientsImagePath: $studioIngredientsImagePath, ')
+          ..write('studioNutritionImagePath: $studioNutritionImagePath, ')
+          ..write('productDetailsJson: $productDetailsJson, ')
           ..write('isSynced: $isSynced, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -615,6 +745,10 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
       nutritionImagePath,
       ageGroup,
       category,
+      studioImagePath,
+      studioIngredientsImagePath,
+      studioNutritionImagePath,
+      productDetailsJson,
       isSynced,
       createdAt);
   @override
@@ -628,6 +762,10 @@ class PendingUpload extends DataClass implements Insertable<PendingUpload> {
           other.nutritionImagePath == this.nutritionImagePath &&
           other.ageGroup == this.ageGroup &&
           other.category == this.category &&
+          other.studioImagePath == this.studioImagePath &&
+          other.studioIngredientsImagePath == this.studioIngredientsImagePath &&
+          other.studioNutritionImagePath == this.studioNutritionImagePath &&
+          other.productDetailsJson == this.productDetailsJson &&
           other.isSynced == this.isSynced &&
           other.createdAt == this.createdAt);
 }
@@ -640,6 +778,10 @@ class PendingUploadsCompanion extends UpdateCompanion<PendingUpload> {
   final Value<String> nutritionImagePath;
   final Value<String> ageGroup;
   final Value<String> category;
+  final Value<String> studioImagePath;
+  final Value<String> studioIngredientsImagePath;
+  final Value<String> studioNutritionImagePath;
+  final Value<String> productDetailsJson;
   final Value<bool> isSynced;
   final Value<DateTime> createdAt;
   const PendingUploadsCompanion({
@@ -650,6 +792,10 @@ class PendingUploadsCompanion extends UpdateCompanion<PendingUpload> {
     this.nutritionImagePath = const Value.absent(),
     this.ageGroup = const Value.absent(),
     this.category = const Value.absent(),
+    this.studioImagePath = const Value.absent(),
+    this.studioIngredientsImagePath = const Value.absent(),
+    this.studioNutritionImagePath = const Value.absent(),
+    this.productDetailsJson = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
@@ -661,6 +807,10 @@ class PendingUploadsCompanion extends UpdateCompanion<PendingUpload> {
     required String nutritionImagePath,
     this.ageGroup = const Value.absent(),
     this.category = const Value.absent(),
+    this.studioImagePath = const Value.absent(),
+    this.studioIngredientsImagePath = const Value.absent(),
+    this.studioNutritionImagePath = const Value.absent(),
+    this.productDetailsJson = const Value.absent(),
     this.isSynced = const Value.absent(),
     required DateTime createdAt,
   })  : barcode = Value(barcode),
@@ -676,6 +826,10 @@ class PendingUploadsCompanion extends UpdateCompanion<PendingUpload> {
     Expression<String>? nutritionImagePath,
     Expression<String>? ageGroup,
     Expression<String>? category,
+    Expression<String>? studioImagePath,
+    Expression<String>? studioIngredientsImagePath,
+    Expression<String>? studioNutritionImagePath,
+    Expression<String>? productDetailsJson,
     Expression<bool>? isSynced,
     Expression<DateTime>? createdAt,
   }) {
@@ -689,6 +843,13 @@ class PendingUploadsCompanion extends UpdateCompanion<PendingUpload> {
         'nutrition_image_path': nutritionImagePath,
       if (ageGroup != null) 'age_group': ageGroup,
       if (category != null) 'category': category,
+      if (studioImagePath != null) 'studio_image_path': studioImagePath,
+      if (studioIngredientsImagePath != null)
+        'studio_ingredients_image_path': studioIngredientsImagePath,
+      if (studioNutritionImagePath != null)
+        'studio_nutrition_image_path': studioNutritionImagePath,
+      if (productDetailsJson != null)
+        'product_details_json': productDetailsJson,
       if (isSynced != null) 'is_synced': isSynced,
       if (createdAt != null) 'created_at': createdAt,
     });
@@ -702,6 +863,10 @@ class PendingUploadsCompanion extends UpdateCompanion<PendingUpload> {
       Value<String>? nutritionImagePath,
       Value<String>? ageGroup,
       Value<String>? category,
+      Value<String>? studioImagePath,
+      Value<String>? studioIngredientsImagePath,
+      Value<String>? studioNutritionImagePath,
+      Value<String>? productDetailsJson,
       Value<bool>? isSynced,
       Value<DateTime>? createdAt}) {
     return PendingUploadsCompanion(
@@ -712,6 +877,12 @@ class PendingUploadsCompanion extends UpdateCompanion<PendingUpload> {
       nutritionImagePath: nutritionImagePath ?? this.nutritionImagePath,
       ageGroup: ageGroup ?? this.ageGroup,
       category: category ?? this.category,
+      studioImagePath: studioImagePath ?? this.studioImagePath,
+      studioIngredientsImagePath:
+          studioIngredientsImagePath ?? this.studioIngredientsImagePath,
+      studioNutritionImagePath:
+          studioNutritionImagePath ?? this.studioNutritionImagePath,
+      productDetailsJson: productDetailsJson ?? this.productDetailsJson,
       isSynced: isSynced ?? this.isSynced,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -742,6 +913,20 @@ class PendingUploadsCompanion extends UpdateCompanion<PendingUpload> {
     if (category.present) {
       map['category'] = Variable<String>(category.value);
     }
+    if (studioImagePath.present) {
+      map['studio_image_path'] = Variable<String>(studioImagePath.value);
+    }
+    if (studioIngredientsImagePath.present) {
+      map['studio_ingredients_image_path'] =
+          Variable<String>(studioIngredientsImagePath.value);
+    }
+    if (studioNutritionImagePath.present) {
+      map['studio_nutrition_image_path'] =
+          Variable<String>(studioNutritionImagePath.value);
+    }
+    if (productDetailsJson.present) {
+      map['product_details_json'] = Variable<String>(productDetailsJson.value);
+    }
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
@@ -761,6 +946,10 @@ class PendingUploadsCompanion extends UpdateCompanion<PendingUpload> {
           ..write('nutritionImagePath: $nutritionImagePath, ')
           ..write('ageGroup: $ageGroup, ')
           ..write('category: $category, ')
+          ..write('studioImagePath: $studioImagePath, ')
+          ..write('studioIngredientsImagePath: $studioIngredientsImagePath, ')
+          ..write('studioNutritionImagePath: $studioNutritionImagePath, ')
+          ..write('productDetailsJson: $productDetailsJson, ')
           ..write('isSynced: $isSynced, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -1183,6 +1372,10 @@ typedef $$PendingUploadsTableCreateCompanionBuilder = PendingUploadsCompanion
   required String nutritionImagePath,
   Value<String> ageGroup,
   Value<String> category,
+  Value<String> studioImagePath,
+  Value<String> studioIngredientsImagePath,
+  Value<String> studioNutritionImagePath,
+  Value<String> productDetailsJson,
   Value<bool> isSynced,
   required DateTime createdAt,
 });
@@ -1195,6 +1388,10 @@ typedef $$PendingUploadsTableUpdateCompanionBuilder = PendingUploadsCompanion
   Value<String> nutritionImagePath,
   Value<String> ageGroup,
   Value<String> category,
+  Value<String> studioImagePath,
+  Value<String> studioIngredientsImagePath,
+  Value<String> studioNutritionImagePath,
+  Value<String> productDetailsJson,
   Value<bool> isSynced,
   Value<DateTime> createdAt,
 });
@@ -1231,6 +1428,22 @@ class $$PendingUploadsTableFilterComposer
 
   ColumnFilters<String> get category => $composableBuilder(
       column: $table.category, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get studioImagePath => $composableBuilder(
+      column: $table.studioImagePath,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get studioIngredientsImagePath => $composableBuilder(
+      column: $table.studioIngredientsImagePath,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get studioNutritionImagePath => $composableBuilder(
+      column: $table.studioNutritionImagePath,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get productDetailsJson => $composableBuilder(
+      column: $table.productDetailsJson,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
@@ -1272,6 +1485,22 @@ class $$PendingUploadsTableOrderingComposer
   ColumnOrderings<String> get category => $composableBuilder(
       column: $table.category, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get studioImagePath => $composableBuilder(
+      column: $table.studioImagePath,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get studioIngredientsImagePath => $composableBuilder(
+      column: $table.studioIngredientsImagePath,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get studioNutritionImagePath => $composableBuilder(
+      column: $table.studioNutritionImagePath,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get productDetailsJson => $composableBuilder(
+      column: $table.productDetailsJson,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
 
@@ -1308,6 +1537,18 @@ class $$PendingUploadsTableAnnotationComposer
 
   GeneratedColumn<String> get category =>
       $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<String> get studioImagePath => $composableBuilder(
+      column: $table.studioImagePath, builder: (column) => column);
+
+  GeneratedColumn<String> get studioIngredientsImagePath => $composableBuilder(
+      column: $table.studioIngredientsImagePath, builder: (column) => column);
+
+  GeneratedColumn<String> get studioNutritionImagePath => $composableBuilder(
+      column: $table.studioNutritionImagePath, builder: (column) => column);
+
+  GeneratedColumn<String> get productDetailsJson => $composableBuilder(
+      column: $table.productDetailsJson, builder: (column) => column);
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
@@ -1350,6 +1591,10 @@ class $$PendingUploadsTableTableManager extends RootTableManager<
             Value<String> nutritionImagePath = const Value.absent(),
             Value<String> ageGroup = const Value.absent(),
             Value<String> category = const Value.absent(),
+            Value<String> studioImagePath = const Value.absent(),
+            Value<String> studioIngredientsImagePath = const Value.absent(),
+            Value<String> studioNutritionImagePath = const Value.absent(),
+            Value<String> productDetailsJson = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
           }) =>
@@ -1361,6 +1606,10 @@ class $$PendingUploadsTableTableManager extends RootTableManager<
             nutritionImagePath: nutritionImagePath,
             ageGroup: ageGroup,
             category: category,
+            studioImagePath: studioImagePath,
+            studioIngredientsImagePath: studioIngredientsImagePath,
+            studioNutritionImagePath: studioNutritionImagePath,
+            productDetailsJson: productDetailsJson,
             isSynced: isSynced,
             createdAt: createdAt,
           ),
@@ -1372,6 +1621,10 @@ class $$PendingUploadsTableTableManager extends RootTableManager<
             required String nutritionImagePath,
             Value<String> ageGroup = const Value.absent(),
             Value<String> category = const Value.absent(),
+            Value<String> studioImagePath = const Value.absent(),
+            Value<String> studioIngredientsImagePath = const Value.absent(),
+            Value<String> studioNutritionImagePath = const Value.absent(),
+            Value<String> productDetailsJson = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             required DateTime createdAt,
           }) =>
@@ -1383,6 +1636,10 @@ class $$PendingUploadsTableTableManager extends RootTableManager<
             nutritionImagePath: nutritionImagePath,
             ageGroup: ageGroup,
             category: category,
+            studioImagePath: studioImagePath,
+            studioIngredientsImagePath: studioIngredientsImagePath,
+            studioNutritionImagePath: studioNutritionImagePath,
+            productDetailsJson: productDetailsJson,
             isSynced: isSynced,
             createdAt: createdAt,
           ),

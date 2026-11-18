@@ -69,7 +69,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (source == null || !mounted) return null;
       final x = await picker.pickImage(
         source: source,
-        imageQuality: 85,
+        imageQuality: 95,
         preferredCameraDevice: CameraDevice.rear,
       );
       if (x == null) return null;

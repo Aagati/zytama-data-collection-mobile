@@ -87,6 +87,10 @@ class ProductRepositoryImpl implements ProductRepository {
     required File? nutritionImage,
     required String ageGroup,
     required String category,
+    File? studioImage,
+    File? studioIngredientsImage,
+    File? studioNutritionImage,
+    String productDetailsJson = '',
   }) async {
     if (connectivity.isOnline) {
       try {
@@ -97,6 +101,10 @@ class ProductRepositoryImpl implements ProductRepository {
           nutritionImage: nutritionImage,
           ageGroup: ageGroup,
           category: category,
+          studioImage: studioImage,
+          studioIngredientsImage: studioIngredientsImage,
+          studioNutritionImage: studioNutritionImage,
+          productDetailsJson: productDetailsJson,
         );
         return Right(result.message);
       } on NetworkException {
@@ -107,6 +115,10 @@ class ProductRepositoryImpl implements ProductRepository {
           nutritionImage: nutritionImage,
           ageGroup: ageGroup,
           category: category,
+          studioImage: studioImage,
+          studioIngredientsImage: studioIngredientsImage,
+          studioNutritionImage: studioNutritionImage,
+          productDetailsJson: productDetailsJson,
         );
       } on ServerException catch (e) {
         return Left(ServerFailure(e.message));
@@ -119,6 +131,10 @@ class ProductRepositoryImpl implements ProductRepository {
         nutritionImage: nutritionImage,
         ageGroup: ageGroup,
         category: category,
+        studioImage: studioImage,
+        studioIngredientsImage: studioIngredientsImage,
+        studioNutritionImage: studioNutritionImage,
+        productDetailsJson: productDetailsJson,
       );
     }
   }
@@ -130,6 +146,10 @@ class ProductRepositoryImpl implements ProductRepository {
     required File? nutritionImage,
     required String ageGroup,
     required String category,
+    File? studioImage,
+    File? studioIngredientsImage,
+    File? studioNutritionImage,
+    String productDetailsJson = '',
   }) async {
     final dir = await getApplicationDocumentsDirectory();
     final offlineDir =
@@ -147,6 +167,13 @@ class ProductRepositoryImpl implements ProductRepository {
     final savedNutrition = nutritionImage != null
         ? (await nutritionImage.copy(p.join(offlineDir.path, 'nutrition.jpg'))).path
         : '';
+    Future<String> keep(File? f, String name) async =>
+        f == null ? '' : (await f.copy(p.join(offlineDir.path, name))).path;
+    final savedStudio = await keep(studioImage, 'studio.jpg');
+    final savedStudioIngredients =
+        await keep(studioIngredientsImage, 'studio_ingredients.jpg');
+    final savedStudioNutrition =
+        await keep(studioNutritionImage, 'studio_nutrition.jpg');
 
     await db.insertPendingUpload(PendingUploadsCompanion(
       barcode: Value(barcode),
@@ -155,6 +182,10 @@ class ProductRepositoryImpl implements ProductRepository {
       nutritionImagePath: Value(savedNutrition),
       ageGroup: Value(ageGroup),
       category: Value(category),
+      studioImagePath: Value(savedStudio),
+      studioIngredientsImagePath: Value(savedStudioIngredients),
+      studioNutritionImagePath: Value(savedStudioNutrition),
+      productDetailsJson: Value(productDetailsJson),
       createdAt: Value(DateTime.now()),
     ));
 

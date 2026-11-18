@@ -13,5 +13,9 @@ abstract class ProductRepository {
     required File? nutritionImage,
     required String ageGroup,
     required String category,
+    File? studioImage,
+    File? studioIngredientsImage,
+    File? studioNutritionImage,
+    String productDetailsJson = '',
   });
 }

@@ -9,6 +9,8 @@ import '../../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../../features/product/data/datasources/product_remote_datasource.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/product/data/repositories/product_repository_impl.dart';
+import '../../features/product/data/services/product_ocr_service.dart';
+import '../../features/product/data/services/studio_image_service.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/product/domain/repositories/product_repository.dart';
 import '../../features/auth/domain/usecases/login_usecase.dart';
@@ -71,6 +73,12 @@ Future<void> init() async {
   sl.registerLazySingleton<NotificationRepository>(
     () => NotificationRepositoryImpl(sl()),
   );
+
+  // On-device image services (OCR + studio photo)
+  sl.registerLazySingleton(() => ProductOcrService());
+  // OCR's text direction tells the studio photo which way is up.
+  sl.registerLazySingleton(() => StudioImageService(
+      uprightTurns: (photo) => sl<ProductOcrService>().uprightTurns(photo)));
 
   // Use cases
   sl.registerLazySingleton(() => LoginUseCase(sl()));

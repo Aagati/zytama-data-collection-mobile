@@ -25,6 +25,16 @@ class PendingUploads extends Table {
   TextColumn get ageGroup => text().withDefault(const Constant(''))();
   // Product category as chosen from the backend list; empty if unset.
   TextColumn get category => text().withDefault(const Constant(''))();
+  // Studio (background/hand-removed) versions of the three photos; empty if
+  // none. studioImagePath is the front photo (added in v4).
+  TextColumn get studioImagePath => text().withDefault(const Constant(''))();
+  TextColumn get studioIngredientsImagePath =>
+      text().withDefault(const Constant(''))();
+  TextColumn get studioNutritionImagePath =>
+      text().withDefault(const Constant(''))();
+  // OCR-read, agent-corrected label details as JSON; empty if none.
+  TextColumn get productDetailsJson =>
+      text().withDefault(const Constant(''))();
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
 }
@@ -47,7 +57,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -58,6 +68,17 @@ class AppDatabase extends _$AppDatabase {
           if (from < 3) {
             await m.addColumn(pendingUploads, pendingUploads.category);
             await m.createTable(cachedCategories);
+          }
+          if (from < 4) {
+            await m.addColumn(pendingUploads, pendingUploads.studioImagePath);
+            await m.addColumn(
+                pendingUploads, pendingUploads.productDetailsJson);
+          }
+          if (from < 5) {
+            await m.addColumn(
+                pendingUploads, pendingUploads.studioIngredientsImagePath);
+            await m.addColumn(
+                pendingUploads, pendingUploads.studioNutritionImagePath);
           }
         },
       );

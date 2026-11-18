@@ -1,0 +1,9 @@
+# Training data and outputs: large, and contain product photos.
+phone_photos/
+photos/
+dataset/
+backgrounds/
+runs/
+*.pth
+*.onnx
+__pycache__/

@@ -1,0 +1,20 @@
+# Python 3.10–3.12 recommended (Colab's default works).
+numpy
+pillow
+scipy
+# Draft masks (prepare_dataset.py --teacher isnet/birefnet).
+rembg[cpu]          # on a CUDA machine: rembg[gpu]
+# Training.
+torch
+torchvision
+# Running .tflite models (prepare_dataset.py hand removal, evaluate.py).
+ai-edge-litert
+# Export (scripts/convert_u2netp_to_tflite.py).
+onnx
+onnxsim
+onnx2tf
+tensorflow
+tf_keras
+onnx_graphsurgeon
+sng4onnx
+psutil

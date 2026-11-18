@@ -74,4 +74,4 @@ All colors defined in `AppColors` (`lib/core/constants/app_colors.dart`).
 ## Conventions
 - Screens are broken into private widget classes (prefixed `_`) within the same file.
 - `prefs.clear()` is used on logout to wipe all stored data.
-- All image captures use `ImageSource.camera` with `imageQuality: 85`.
+- Image picks use `imageQuality: 95`; the in-app camera uses `ResolutionPreset.max` (label print needs the pixels).

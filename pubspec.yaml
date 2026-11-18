@@ -60,6 +60,9 @@ dependencies:
   sqlite3_flutter_libs: ^0.5.0
   path_provider: ^2.1.0
   path: ^1.9.0
+  google_mlkit_text_recognition: ^1.0.3
+  image: ^4.13.1
+  tflite_flutter: ^0.12.1
 
 dev_dependencies:
   flutter_test:
@@ -82,3 +85,9 @@ flutter:
     - assets/icon/icon.png
     - assets/svg/
     - assets/images/
+    # TFLite models (both Apache-2.0):
+    #  - u2netp.tflite: from scripts/convert_u2netp_to_tflite.py
+    #  - selfie_multiclass_256x256.tflite: MediaPipe, downloaded as-is from
+    #    https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite
+    #    (sha256 c6748b1253a99067ef71f7e26ca71096cd449baefa8f101900ea23016507e0e0)
+    - assets/models/

@@ -49,17 +49,34 @@ class SubmitProduct extends ProductEvent {
   final File? nutritionImage;
   final String ageGroup;
   final String category;
+  final File? studioImage;
+  final File? studioIngredientsImage;
+  final File? studioNutritionImage;
+  final ProductDetails productDetails;
   const SubmitProduct({
     required this.productImage,
     required this.ingredientsImage,
     required this.nutritionImage,
     required this.ageGroup,
     required this.category,
+    this.studioImage,
+    this.studioIngredientsImage,
+    this.studioNutritionImage,
+    this.productDetails = ProductDetails.empty,
   });
 
   @override
-  List<Object?> get props =>
-      [productImage, ingredientsImage, nutritionImage, ageGroup, category];
+  List<Object?> get props => [
+        productImage,
+        ingredientsImage,
+        nutritionImage,
+        ageGroup,
+        category,
+        studioImage,
+        studioIngredientsImage,
+        studioNutritionImage,
+        productDetails,
+      ];
 }
 
 class AllImagesCaptured extends ProductEvent {

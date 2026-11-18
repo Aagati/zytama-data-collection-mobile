@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MethodChannel;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:zytama_data/core/constants/app_colors.dart';
@@ -25,6 +27,9 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
   }
 
   Future<void> _initCamera() async {
+    // Give a camera the previous screen just released a moment to close.
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
     final status = await Permission.camera.request();
     if (!mounted) return;
     if (status.isGranted) {
@@ -49,9 +54,46 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _retryTimer?.cancel();
     _controller?.dispose();
     super.dispose();
   }
+
+  // ── Camera-busy recovery ──
+  static const _maxRetries = 4;
+  int _retries = 0;
+  Timer? _retryTimer;
+
+  void _scheduleRetry() {
+    if (_retries >= _maxRetries || (_retryTimer?.isActive ?? false)) return;
+    _retries++;
+    _retryTimer = Timer(Duration(milliseconds: 700 * _retries), () {
+      if (mounted) _restartScanner();
+    });
+  }
+
+  /// Full reset: after a failed start the plugin's native side can still
+  /// think it's running (every later start() then fails with "Called start()
+  /// while already started"), and the Dart controller won't stop it because
+  /// it believes it never started. So stop natively, then use a brand-new
+  /// controller.
+  Future<void> _restartScanner() async {
+    final old = _controller;
+    if (old == null) return;
+    setState(() => _controller = null);
+    try {
+      await old.dispose();
+    } catch (_) {}
+    try {
+      await _scannerChannel.invokeMethod<void>('stop');
+    } catch (_) {} // "already stopped" is fine
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+    setState(() => _controller = MobileScannerController());
+  }
+
+  static const _scannerChannel =
+      MethodChannel('dev.steenbakker.mobile_scanner/scanner/method');
 
   Future<void> _onDetect(BarcodeCapture capture) async {
     if (_hasScanned) return;
@@ -98,14 +140,33 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
           ],
         ],
       ),
-      body: _permissionGranted == null
+      body: _permissionGranted == null ||
+              (_permissionGranted == true && _controller == null)
           ? const Center(child: CircularProgressIndicator(color: Colors.white))
           : _permissionGranted == false
               ? _PermissionDeniedView(onRetry: _initCamera)
               : Stack(
 
         children: [
-          MobileScanner(controller: _controller!, onDetect: _onDetect),
+          MobileScanner(
+            key: ObjectKey(_controller),
+            controller: _controller!,
+            onDetect: _onDetect,
+            errorBuilder: (context, error, _) {
+              // Camera can still be busy for a moment after the photo
+              // screen; retry quietly a few times before showing an error.
+              _scheduleRetry();
+              return _ScannerErrorView(
+                retrying: _retries < _maxRetries,
+                message: error.errorDetails?.message ??
+                    error.errorCode.name,
+                onRetry: () {
+                  _retries = 0;
+                  _restartScanner();
+                },
+              );
+            },
+          ),
 
           // Scan frame
           Center(
@@ -205,6 +266,64 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen>
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _ScannerErrorView extends StatelessWidget {
+  final bool retrying;
+  final String message;
+  final VoidCallback onRetry;
+  const _ScannerErrorView({
+    required this.retrying,
+    required this.message,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.black,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (retrying) ...[
+                const CircularProgressIndicator(color: Colors.white),
+                const SizedBox(height: 16),
+                const Text('Starting camera…',
+                    style: TextStyle(color: Colors.white, fontSize: 15)),
+              ] else ...[
+                const Icon(Icons.no_photography_outlined,
+                    color: Colors.white70, size: 48),
+                const SizedBox(height: 12),
+                const Text("Couldn't open the camera",
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                Text(message,
+                    textAlign: TextAlign.center,
+                    style:
+                        const TextStyle(color: Colors.white54, fontSize: 12)),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Try again'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.secondary,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

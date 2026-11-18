@@ -107,6 +107,11 @@ class SyncService {
       final productFile = await _resolveFile(record.productImagePath);
       final ingredientsFile = await _resolveFile(record.ingredientsImagePath);
       final nutritionFile = await _resolveFile(record.nutritionImagePath);
+      final studioFile = await _resolveFile(record.studioImagePath);
+      final studioIngredientsFile =
+          await _resolveFile(record.studioIngredientsImagePath);
+      final studioNutritionFile =
+          await _resolveFile(record.studioNutritionImagePath);
 
       await _remoteDataSource.uploadProduct(
         barcode: record.barcode,
@@ -115,6 +120,10 @@ class SyncService {
         nutritionImage: nutritionFile,
         ageGroup: record.ageGroup,
         category: record.category,
+        studioImage: studioFile,
+        studioIngredientsImage: studioIngredientsFile,
+        studioNutritionImage: studioNutritionFile,
+        productDetailsJson: record.productDetailsJson,
       );
 
       await _markSyncedAndDelete(record);
@@ -139,6 +148,9 @@ class SyncService {
       _tryDelete(record.productImagePath),
       _tryDelete(record.ingredientsImagePath),
       _tryDelete(record.nutritionImagePath),
+      _tryDelete(record.studioImagePath),
+      _tryDelete(record.studioIngredientsImagePath),
+      _tryDelete(record.studioNutritionImagePath),
     ]);
     await _db.deletePendingUpload(record.id);
   }

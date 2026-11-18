@@ -1,11 +1,17 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/image_source_sheet.dart';
+import '../../data/services/product_ocr_service.dart';
+import '../../data/services/studio_image_service.dart';
+import '../widgets/ai_box_painter.dart';
+import '../../domain/entities/product_details.dart';
 import '../../domain/usecases/get_categories_usecase.dart';
 import '../bloc/product_bloc.dart';
+import 'image_crop_screen.dart';
 
 class ProductReviewScreen extends StatefulWidget {
   final String barcode;
@@ -50,6 +56,47 @@ class _ProductReviewScreenState extends State<ProductReviewScreen> {
   String? _categoriesError;
   final _picker = ImagePicker();
 
+  // ── Studio photos (TFLite, on-device): one per captured photo ──
+  static const _photoNames = ['Product', 'Ingredients', 'Nutrition'];
+  final List<StudioResult?> _studio = List.filled(3, null);
+  final List<bool> _studioBusy = List.filled(3, false);
+  // Drops results for a photo that was replaced/cropped in the meantime.
+  final List<int> _studioRun = List.filled(3, 0);
+  bool _useStudio = true;
+
+  File? _imageAt(int i) => switch (i) {
+        0 => _productImage,
+        1 => _ingredientsImage,
+        _ => _nutritionImage,
+      };
+
+  void _setImage(int i, File f) {
+    switch (i) {
+      case 0:
+        _productImage = f;
+      case 1:
+        _ingredientsImage = f;
+      case 2:
+        _nutritionImage = f;
+    }
+  }
+
+  // ── OCR product details ──
+  bool _ocrBusy = false;
+  int _ocrRun = 0;
+  final Map<String, TextEditingController> _fields = {
+    for (final k in [
+      'net_quantity',
+      'mrp',
+      'fssai_license',
+      'ingredients',
+      'allergens',
+      'nutrition_basis',
+      ...kNutritionFields.keys,
+    ])
+      k: TextEditingController(),
+  };
+
   @override
   void initState() {
     super.initState();
@@ -57,6 +104,111 @@ class _ProductReviewScreenState extends State<ProductReviewScreen> {
     _ingredientsImage = widget.initialIngredientsImage;
     _nutritionImage = widget.initialNutritionImage;
     _loadCategories();
+    for (var i = 0; i < 3; i++) {
+      _generateStudio(i);
+    }
+    _runOcr();
+  }
+
+  @override
+  void dispose() {
+    for (final c in _fields.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  /// Usually already finished: the capture screen starts each one as soon as
+  /// the photo is taken. [force] is for the "Try again" button.
+  Future<void> _generateStudio(int index, {bool force = false}) async {
+    final source = _imageAt(index);
+    final run = ++_studioRun[index];
+    if (!StudioImageService.isSupported || source == null) {
+      setState(() {
+        _studio[index] = null;
+        _studioBusy[index] = false;
+      });
+      return;
+    }
+    setState(() {
+      _studioBusy[index] = true;
+      _studio[index] = null;
+    });
+    final result = await sl<StudioImageService>().create(
+      source,
+      kind: index == 0 ? StudioKind.product : StudioKind.label,
+      force: force,
+    );
+    if (!mounted || run != _studioRun[index]) return;
+    setState(() {
+      _studioBusy[index] = false;
+      _studio[index] = result;
+    });
+  }
+
+  /// AI product box of [photo] (filled in by the studio run).
+  ValueListenable<StudioBox?>? _boxOf(File? photo, StudioKind kind) =>
+      photo == null || !StudioImageService.isSupported
+          ? null
+          : sl<StudioImageService>().boxFor(photo, kind: kind);
+
+  /// Agent crops a photo by hand; the studio version and OCR follow the crop.
+  Future<void> _cropImage(int index) async {
+    final source = _imageAt(index);
+    if (source == null) return;
+    final cropped = await ImageCropScreen.open(context, source,
+        title: 'Crop ${_photoNames[index]} Photo');
+    if (cropped == null || !mounted) return;
+    setState(() => _setImage(index, cropped));
+    _generateStudio(index);
+    _runOcr();
+  }
+
+  /// Reads the label photos and fills the detail fields. Only empty fields
+  /// are filled, so re-reading after a retake never wipes the agent's edits.
+  /// Photos read during capture come straight from the cache; [force] (the
+  /// refresh button) reads them all again.
+  Future<void> _runOcr({bool force = false}) async {
+    final run = ++_ocrRun;
+    setState(() => _ocrBusy = true);
+    final d = await sl<ProductOcrService>().extract(
+      frontImage: _productImage,
+      ingredientsImage: _ingredientsImage,
+      nutritionImage: _nutritionImage,
+      force: force,
+    );
+    if (!mounted || run != _ocrRun) return;
+    final read = {
+      'net_quantity': d.netQuantity,
+      'mrp': d.mrp,
+      'fssai_license': d.fssaiLicense,
+      'ingredients': d.ingredients,
+      'allergens': d.allergens,
+      'nutrition_basis': d.nutritionBasis,
+      ...d.nutrition,
+    };
+    setState(() {
+      _ocrBusy = false;
+      read.forEach((key, value) {
+        final c = _fields[key];
+        if (c != null && c.text.trim().isEmpty && value.isNotEmpty) {
+          c.text = value;
+        }
+      });
+    });
+  }
+
+  ProductDetails _collectDetails() {
+    String v(String k) => _fields[k]!.text.trim();
+    return ProductDetails(
+      netQuantity: v('net_quantity'),
+      mrp: v('mrp'),
+      fssaiLicense: v('fssai_license'),
+      ingredients: v('ingredients'),
+      allergens: v('allergens'),
+      nutritionBasis: v('nutrition_basis'),
+      nutrition: {for (final k in kNutritionFields.keys) k: v(k)},
+    );
   }
 
   /// Pulls the category list from the backend; the repository falls back to
@@ -91,20 +243,13 @@ class _ProductReviewScreenState extends State<ProductReviewScreen> {
 
     final x = await _picker.pickImage(
       source: source,
-      imageQuality: 85,
+      imageQuality: 95,
       preferredCameraDevice: CameraDevice.rear,
     );
     if (x == null || !mounted) return;
-    setState(() {
-      switch (index) {
-        case 0:
-          _productImage = File(x.path);
-        case 1:
-          _ingredientsImage = File(x.path);
-        case 2:
-          _nutritionImage = File(x.path);
-      }
-    });
+    setState(() => _setImage(index, File(x.path)));
+    _generateStudio(index);
+    _runOcr();
   }
 
   void _viewImage(File image, String label) {
@@ -199,6 +344,10 @@ class _ProductReviewScreenState extends State<ProductReviewScreen> {
           nutritionImage: _nutritionImage,
           ageGroup: _ageGroup ?? '',
           category: _category ?? '',
+          studioImage: _useStudio ? _studio[0]?.file : null,
+          studioIngredientsImage: _useStudio ? _studio[1]?.file : null,
+          studioNutritionImage: _useStudio ? _studio[2]?.file : null,
+          productDetails: _collectDetails(),
         ));
   }
 
@@ -387,6 +536,8 @@ class _ProductReviewScreenState extends State<ProductReviewScreen> {
                                   : (uploading ? null : () => _replaceImage(0)),
                               onReplace:
                                   uploading ? null : () => _replaceImage(0),
+                              onCrop: uploading ? null : () => _cropImage(0),
+                              box: _boxOf(_productImage, StudioKind.product),
                             ),
 
                             const SizedBox(height: 12),
@@ -402,6 +553,8 @@ class _ProductReviewScreenState extends State<ProductReviewScreen> {
                                   : (uploading ? null : () => _replaceImage(1)),
                               onReplace:
                                   uploading ? null : () => _replaceImage(1),
+                              onCrop: uploading ? null : () => _cropImage(1),
+                              box: _boxOf(_ingredientsImage, StudioKind.label),
                             ),
 
                             const SizedBox(height: 12),
@@ -417,6 +570,42 @@ class _ProductReviewScreenState extends State<ProductReviewScreen> {
                                   : (uploading ? null : () => _replaceImage(2)),
                               onReplace:
                                   uploading ? null : () => _replaceImage(2),
+                              onCrop: uploading ? null : () => _cropImage(2),
+                              box: _boxOf(_nutritionImage, StudioKind.label),
+                            ),
+
+                            if (StudioImageService.isSupported &&
+                                [0, 1, 2].any((i) => _imageAt(i) != null)) ...[
+                              const SizedBox(height: 20),
+                              _StudioCard(
+                                names: _photoNames,
+                                hasPhoto: [
+                                  for (var i = 0; i < 3; i++)
+                                    _imageAt(i) != null
+                                ],
+                                results: _studio,
+                                busy: _studioBusy,
+                                enabled: _useStudio,
+                                onToggle: uploading
+                                    ? null
+                                    : (v) => setState(() => _useStudio = v),
+                                onRetry: uploading
+                                    ? null
+                                    : (i) => _generateStudio(i, force: true),
+                                onView: (i) => _viewImage(_studio[i]!.file!,
+                                    'Studio ${_photoNames[i]} Photo'),
+                              ),
+                            ],
+
+                            const SizedBox(height: 20),
+
+                            _DetailsCard(
+                              fields: _fields,
+                              busy: _ocrBusy,
+                              enabled: !uploading,
+                              onRescan: uploading || _ocrBusy
+                                  ? null
+                                  : () => _runOcr(force: true),
                             ),
                           ],
                         ),
@@ -777,6 +966,10 @@ class _CaptureCard extends StatelessWidget {
   final File? image;
   final VoidCallback? onTap;
   final VoidCallback? onReplace;
+  final VoidCallback? onCrop;
+
+  /// AI box of the product in [image], drawn over the photo once known.
+  final ValueListenable<StudioBox?>? box;
 
   const _CaptureCard({
     required this.number,
@@ -785,6 +978,8 @@ class _CaptureCard extends StatelessWidget {
     required this.image,
     required this.onTap,
     required this.onReplace,
+    this.onCrop,
+    this.box,
   });
 
   @override
@@ -905,6 +1100,49 @@ class _CaptureCard extends StatelessWidget {
                             fit: BoxFit.cover,
                           ),
                   ),
+                  if (!missing && box != null)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: ValueListenableBuilder<StudioBox?>(
+                          valueListenable: box!,
+                          builder: (_, f, __) => f == null
+                              ? const SizedBox.shrink()
+                              : CustomPaint(
+                                  painter: AiBoxPainter(f.box,
+                                      aspect: f.aspect, fit: BoxFit.cover)),
+                        ),
+                      ),
+                    ),
+                  if (!missing && onCrop != null)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Material(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: onCrop,
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.crop_rounded,
+                                    color: Colors.white, size: 14),
+                                SizedBox(width: 4),
+                                Text('Crop',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   if (!missing)
                     Positioned(
                       bottom: 6,
@@ -934,6 +1172,406 @@ class _CaptureCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Shared card shell ─────────────────────────────────────────────────────────
+
+const _kAccent = Color(0xff0A6475);
+const _kMuted = Color(0xff6B7B7E);
+
+BoxDecoration _cardDecoration() => BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      boxShadow: [
+        BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 10),
+      ],
+    );
+
+class _CardHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget? trailing;
+  const _CardHeader({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Icon(icon, color: _kAccent, size: 18),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(title,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w700)),
+                ),
+              ]),
+              const SizedBox(height: 4),
+              Text(subtitle,
+                  style: const TextStyle(fontSize: 12.5, color: _kMuted)),
+            ],
+          ),
+        ),
+        if (trailing != null) trailing!,
+      ],
+    );
+  }
+}
+
+// ── Studio photos card ────────────────────────────────────────────────────────
+
+class _StudioCard extends StatelessWidget {
+  final List<String> names;
+  final List<bool> hasPhoto;
+  final List<StudioResult?> results;
+  final List<bool> busy;
+  final bool enabled;
+  final ValueChanged<bool>? onToggle;
+  final ValueChanged<int>? onRetry;
+  final ValueChanged<int> onView;
+
+  const _StudioCard({
+    required this.names,
+    required this.hasPhoto,
+    required this.results,
+    required this.busy,
+    required this.enabled,
+    required this.onToggle,
+    required this.onRetry,
+    required this.onView,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final anyReady = results.any((r) => r?.file != null);
+    final hands = [
+      for (var i = 0; i < 3; i++)
+        if (results[i]?.handDetected ?? false) names[i]
+    ];
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _CardHeader(
+            icon: Icons.auto_awesome_outlined,
+            title: 'Studio Photos',
+            subtitle: 'Background and hands removed on the phone. '
+                'The original photos are always uploaded too.',
+            trailing: anyReady
+                ? Switch(
+                    value: enabled,
+                    activeThumbColor: _kAccent,
+                    onChanged: onToggle,
+                  )
+                : null,
+          ),
+          if (hands.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xffFFF4E5),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xffF5C27A)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.back_hand_outlined,
+                      size: 18, color: Color(0xffB26A00)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Hand detected in: ${hands.join(', ')}. It was removed, '
+                      'but anything the fingers covered is missing. For best '
+                      'results, retake with the pack on a plain surface.',
+                      style: const TextStyle(
+                          fontSize: 12.5, color: Color(0xff7A4A00)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          LayoutBuilder(builder: (context, c) {
+            const gap = 10.0;
+            final tile = ((c.maxWidth - gap * 2) / 3).clamp(80.0, 180.0);
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                for (var i = 0; i < 3; i++)
+                  SizedBox(width: tile, child: _tile(i, tile)),
+              ],
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _tile(int i, double size) {
+    final r = results[i];
+    final Widget body;
+    if (!hasPhoto[i]) {
+      body = _placeholder(Icons.no_photography_outlined, 'No photo');
+    } else if (busy[i]) {
+      body = Container(
+        color: const Color(0xffF3F8F7),
+        alignment: Alignment.center,
+        child: const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2, color: _kAccent),
+        ),
+      );
+    } else if (r?.file == null) {
+      body = InkWell(
+        onTap: onRetry == null ? null : () => onRetry!(i),
+        child: _placeholder(Icons.refresh_rounded, 'Not clear\nTap to retry',
+            color: Colors.red.shade300),
+      );
+    } else {
+      body = GestureDetector(
+        onTap: () => onView(i),
+        child: Opacity(
+          opacity: enabled ? 1 : 0.4,
+          child: Image.file(r!.file!, fit: BoxFit.cover),
+        ),
+      );
+    }
+    return Column(
+      children: [
+        Container(
+          width: size,
+          height: size,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: (r?.handDetected ?? false)
+                  ? const Color(0xffF5C27A)
+                  : _kAccent.withValues(alpha: 0.15),
+              width: (r?.handDetected ?? false) ? 2 : 1,
+            ),
+          ),
+          child: body,
+        ),
+        const SizedBox(height: 6),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (r?.handDetected ?? false) ...[
+              const Icon(Icons.back_hand_outlined,
+                  size: 12, color: Color(0xffB26A00)),
+              const SizedBox(width: 3),
+            ],
+            Flexible(
+              child: Text(names[i],
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _placeholder(IconData icon, String text, {Color? color}) => Container(
+        color: const Color(0xffF3F8F7),
+        padding: const EdgeInsets.all(6),
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20, color: color ?? _kMuted),
+            const SizedBox(height: 4),
+            Text(text,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 10.5, color: _kMuted)),
+          ],
+        ),
+      );
+}
+
+// ── Product details (OCR) card ────────────────────────────────────────────────
+
+class _DetailsCard extends StatelessWidget {
+  final Map<String, TextEditingController> fields;
+  final bool busy;
+  final bool enabled;
+  final VoidCallback? onRescan;
+
+  const _DetailsCard({
+    required this.fields,
+    required this.busy,
+    required this.enabled,
+    required this.onRescan,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _CardHeader(
+            icon: Icons.document_scanner_outlined,
+            title: 'Product Details',
+            subtitle: busy
+                ? 'Reading the label photos…'
+                : 'Read from the photos. Check and correct before submitting.',
+            trailing: busy
+                ? const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: _kAccent),
+                    ),
+                  )
+                : IconButton(
+                    tooltip: 'Read photos again',
+                    onPressed: onRescan,
+                    icon: const Icon(Icons.refresh_rounded, color: _kAccent),
+                  ),
+          ),
+          const SizedBox(height: 14),
+          LayoutBuilder(builder: (context, c) {
+            // Two columns for short fields when there's room (tablets,
+            // larger phones); one column on narrow screens.
+            final half = c.maxWidth >= 340 ? (c.maxWidth - 12) / 2 : c.maxWidth;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                SizedBox(
+                    width: half,
+                    child: _field('net_quantity', 'Net quantity',
+                        hint: 'e.g. 200 g')),
+                SizedBox(
+                    width: half,
+                    child: _field('mrp', 'MRP (₹)',
+                        keyboard: const TextInputType.numberWithOptions(
+                            decimal: true))),
+                SizedBox(
+                    width: c.maxWidth,
+                    child: _field('fssai_license', 'FSSAI licence no.',
+                        keyboard: TextInputType.number)),
+                SizedBox(
+                    width: c.maxWidth,
+                    child: _field('ingredients', 'Ingredients', maxLines: 5)),
+                SizedBox(
+                    width: c.maxWidth,
+                    child: _field('allergens', 'Allergens',
+                        hint: 'e.g. milk, soy, tree nuts')),
+              ],
+            );
+          }),
+          const SizedBox(height: 8),
+          Theme(
+            data: Theme.of(context)
+                .copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: 4),
+              iconColor: _kAccent,
+              collapsedIconColor: _kAccent,
+              title: ListenableBuilder(
+                listenable: Listenable.merge(
+                    [for (final k in kNutritionFields.keys) fields[k]!]),
+                builder: (context, child) => Text(
+                  'Nutrition information (${_filledNutrition()}/${kNutritionFields.length})',
+                  style: const TextStyle(
+                      fontSize: 14.5, fontWeight: FontWeight.w700),
+                ),
+              ),
+              children: [
+                LayoutBuilder(builder: (context, c) {
+                  final half =
+                      c.maxWidth >= 340 ? (c.maxWidth - 12) / 2 : c.maxWidth;
+                  return Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      SizedBox(
+                          width: c.maxWidth,
+                          child: _field('nutrition_basis', 'Values are',
+                              hint: 'e.g. per 100 g')),
+                      for (final e in kNutritionFields.entries)
+                        SizedBox(
+                          width: half,
+                          child: _field(e.key, e.value,
+                              keyboard: TextInputType.text),
+                        ),
+                    ],
+                  );
+                }),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  int _filledNutrition() => kNutritionFields.keys
+      .where((k) => fields[k]!.text.trim().isNotEmpty)
+      .length;
+
+  Widget _field(
+    String key,
+    String label, {
+    String? hint,
+    int maxLines = 1,
+    TextInputType? keyboard,
+  }) {
+    return TextField(
+      controller: fields[key],
+      enabled: enabled,
+      maxLines: maxLines,
+      minLines: 1,
+      keyboardType: maxLines > 1 ? TextInputType.multiline : keyboard,
+      style: const TextStyle(fontSize: 14, color: Color(0xff20343A)),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        isDense: true,
+        filled: true,
+        fillColor: const Color(0xffF3F8F7),
+        labelStyle: const TextStyle(fontSize: 13, color: _kMuted),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: _kAccent.withValues(alpha: 0.20)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: _kAccent.withValues(alpha: 0.20)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _kAccent, width: 1.4),
+        ),
       ),
     );
   }

@@ -71,6 +71,15 @@ flutter {
     source = "../.."
 }
 
+// google_mlkit_object_detection pulls com.google.mlkit:linkfirebase, which
+// drags in the legacy firebase-iid. Its classes are already bundled in
+// firebase-messaging 25.x, so the build fails with "Duplicate class
+// com.google.firebase.iid.FirebaseInstanceIdReceiver". We only use ML Kit's
+// bundled on-device model (no Firebase-hosted models), so drop firebase-iid.
+configurations.all {
+    exclude(group = "com.google.firebase", module = "firebase-iid")
+}
+
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     implementation("com.google.mlkit:text-recognition:16.0.0")

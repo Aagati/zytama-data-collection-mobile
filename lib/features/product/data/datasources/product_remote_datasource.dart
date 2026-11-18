@@ -15,6 +15,10 @@ abstract class ProductRemoteDataSource {
     required File? nutritionImage,
     required String ageGroup,
     required String category,
+    File? studioImage,
+    File? studioIngredientsImage,
+    File? studioNutritionImage,
+    String productDetailsJson = '',
   });
 }
 
@@ -73,6 +77,10 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
     required File? nutritionImage,
     required String ageGroup,
     required String category,
+    File? studioImage,
+    File? studioIngredientsImage,
+    File? studioNutritionImage,
+    String productDetailsJson = '',
   }) async {
     try {
       // A skipped photo (e.g. no nutrition label) is sent as an empty
@@ -99,6 +107,26 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
                 filename: 'nutrition_image.jpg',
               )
             : '',
+        // Extras: sent only when present, so an upload without them is
+        // byte-for-byte what the backend received before. `front_image`
+        // stays the untouched original.
+        if (studioImage != null)
+          'studio_image': await MultipartFile.fromFile(
+            studioImage.path,
+            filename: 'studio_image.jpg',
+          ),
+        if (studioIngredientsImage != null)
+          'studio_ingredients_image': await MultipartFile.fromFile(
+            studioIngredientsImage.path,
+            filename: 'studio_ingredients_image.jpg',
+          ),
+        if (studioNutritionImage != null)
+          'studio_nutrition_image': await MultipartFile.fromFile(
+            studioNutritionImage.path,
+            filename: 'studio_nutrition_image.jpg',
+          ),
+        if (productDetailsJson.isNotEmpty)
+          'product_details': productDetailsJson,
       });
 
       final response = await apiClient.postMultipart(
